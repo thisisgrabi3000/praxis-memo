@@ -98,8 +98,20 @@
 </div>
 
 <div class="step">
+  <span class="step-time">~5 Min</span>
+  <p><span class="step-num">6</span><strong>AnyDesk installieren (für Remote-Support später)</strong></p>
+  <p>Doppelklick <code>AnyDesk.exe</code> im App-Ordner → „Installieren" wählen (NICHT „Now Run"). Nach Install: AnyDesk öffnet sich → ihre <strong>9-stellige AnyDesk-Adresse</strong> notieren. Dann <code>Einstellungen → Sicherheit → Unbeaufsichtigten Zugriff zulassen</code> aktivieren + <strong>festes Passwort setzen</strong> (in deinen Passwortmanager). Ab jetzt kannst du jederzeit live drauf, ohne dass sie etwas klicken muss.</p>
+</div>
+
+<div class="step">
+  <span class="step-time">~2 Min</span>
+  <p><span class="step-num">7</span><strong>Update-Flow einmal live testen</strong></p>
+  <p>Doppelklick <code>Praxis Memo Update.bat</code>. Muss durchlaufen: Backup → Code-Download von GitHub → Whisper-pip → Ollama-Pull → fertig. Beweist dass sie ab jetzt monatlich selbst updaten kann.</p>
+</div>
+
+<div class="step">
   <span class="step-time">offen</span>
-  <p><span class="step-num">6</span><strong>Walkthrough starten</strong></p>
+  <p><span class="step-num">8</span><strong>Walkthrough starten</strong></p>
   <p>Ab hier → <code>docs/walkthrough-checklist.md</code>. Fragen NIE als Liste vorlegen, immer im Kontext stellen wenn sie das Feature gerade erlebt hat.</p>
 </div>
 
@@ -116,8 +128,37 @@
   <tr><td>Mikrofon stumm</td><td>Windows-Einstellungen → Datenschutz → Mikrofon → für Browser erlauben.</td></tr>
   <tr><td>Browser zeigt nichts</td><td>URL: <code>http://127.0.0.1:3000/</code> (NICHT <code>localhost</code> falls Edge IPv6-zickig).</td></tr>
   <tr><td>Schwarzes Fenster weg → App tot</td><td>Doppelklick Desktop-Icon → startet neu. Daten sind sicher in <code>data/</code>.</td></tr>
-  <tr><td>Update nötig (später)</td><td>Doppelklick <code>Praxis Memo Update.bat</code> — macht automatisch Backup + Update.</td></tr>
+  <tr><td>Update nötig (später)</td><td>Doppelklick <code>Praxis Memo Update.bat</code> — Backup + Code-Download von GitHub + KI-Update in einem.</td></tr>
+  <tr><td>Code-Update lädt nicht</td><td>Internet aus? Skript läuft trotzdem durch (KI-Update weiter), Code bleibt unverändert. Per AnyDesk drauf, manuell debuggen.</td></tr>
+  <tr><td>Nach Code-Update App kaputt</td><td>Backup liegt in <code>backups\vor-update\code-YYYY-MM-DD_HH-MM-SS\</code> — Files zurück in App-Ordner kopieren, fertig.</td></tr>
 </table>
+
+<h2>Release-Workflow für CMG (das nächste Update bauen)</h2>
+
+<ol>
+  <li>Code in <code>app.js</code> / <code>index.html</code> / <code>styles.css</code> / <code>praxis_memo_server.py</code> ändern.</li>
+  <li>Version in <code>VERSION</code>-File bumpen (falls separat gepflegt) oder direkt im Release-Tag.</li>
+  <li>Im Repo-Ordner:
+    <pre>cd "/Users/cmg/Documents/Claude Test Ordner/Miriams Memory Assistent"
+git add app.js index.html styles.css praxis_memo_server.py
+git commit -m "fix: ..."
+git push
+
+# ZIP bauen
+TMP=$(mktemp -d)
+cp app.js index.html styles.css praxis_memo_server.py "$TMP/"
+echo "1.0.1" &gt; "$TMP/VERSION"
+(cd "$TMP" &amp;&amp; zip -q praxis-memo-app.zip *)
+
+# Release publishen
+gh release create v1.0.1 "$TMP/praxis-memo-app.zip" \
+  --title "v1.0.1 — kurze Beschreibung" \
+  --notes "Was sich geändert hat..."</pre>
+  </li>
+  <li>Miriam anrufen: „Klick mal Update". Oder per AnyDesk selbst klicken. Fertig.</li>
+</ol>
+
+<p><strong>Repo:</strong> <code>https://github.com/thisisgrabi3000/praxis-memo</code> · <strong>Release-URL die die BAT zieht:</strong> <code>https://github.com/thisisgrabi3000/praxis-memo/releases/latest/download/praxis-memo-app.zip</code></p>
 
 <h2>Was Miriam danach selbst kann (Daily-Use)</h2>
 
