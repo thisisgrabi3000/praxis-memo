@@ -1,0 +1,35 @@
+# --- Niemals committen: Patientendaten + Backups ---
+data/
+backups/
+*.log
+data/tmp/
+
+# --- Installer (zu groß, kommt vom AnyDesk/Ollama-Server) ---
+OllamaSetup.exe
+AnyDesk.exe
+
+# --- macOS / Windows / Python Junk ---
+.DS_Store
+Thumbs.db
+desktop.ini
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# --- Editor / Tooling ---
+.vscode/
+.idea/
+.claude/
+.claude-flow/
+
+# --- Build-Artefakte / Pakete ---
+*.zip
+dist/
+build/
+
+# --- Lokal-Configs ---
+*.local
+.env
+.env.local

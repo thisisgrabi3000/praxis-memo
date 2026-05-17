@@ -1,0 +1,284 @@
+# Praxis Memo — Übergabedokument
+
+Letzte Aktualisierung: 2026-05-10  
+Kontext: Lokale Web-App für eine Psychotherapeutin (Miriam), entwickelt auf macOS, Zielplattform Windows-PC im Praxisbetrieb.
+
+---
+
+## 1. Projektübersicht
+
+**Was ist das?**  
+Eine lokale Browser-App zur Sitzungsdokumentation. Die Ärztin spricht nach jeder Therapiestunde eine Nachnotiz ein. Die KI strukturiert den Text in vier Felder (Kernpunkte, Absprachen, Offene Punkte, Beobachtungsfokus). Die App zeigt vor dem nächsten Termin automatisch die Vorbereitung für den jeweiligen Patienten.
+
+**Technischer Stack:**
+- `index.html` + `styles.css` + `app.js` — reines Vanilla-JS, kein Framework, kein Build-Step
+- `praxis_memo_server.py` — Python-Standardbibliothek HTTP-Server (`ThreadingHTTPServer`), läuft lokal auf `127.0.0.1:3000`
+- Start über `Start Praxis Memo.bat` (Windows), öffnet Browser automatisch
+- KI lokal via [Ollama](https://ollama.com) (`qwen2.5:7b`) + [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (`small`)
+- Einrichtung via `KI einrichten.bat` (Ein-Klick)
+
+**Datenpfade:**
+```
+data/praxismemo-data.json   ← aktive Arbeitsdatei
+data/backup-state.json      ← Zeitstempel letztes Auto-Backup
+backups/YYYY-MM-DD/*.json   ← tägliche Backups (auto + manuell)
+```
+
+**Datenschutz:**  
+Alle Daten bleiben auf dem PC. Kein Text, kein Audio verlässt das Gerät. Miriam darf aus datenschutzrechtlichen Gründen keine Termine in einem externen Kalender führen (Psyprax-Only-Policy).
+
+---
+
+## 2. Datenmodell
+
+### Patient
+```js
+{
+  uid: string,           // intern, z.B. "p-1234567890"
+  id: string,            // Anzeigename, z.B. "P-014"
+  status: "Offen" | "Entwurf" | "Geprüft",
+  nextDate: string,      // ISO "YYYY-MM-DD" — nächster Termin
+  nextTime: string,      // "HH:MM" — Uhrzeit nächster Termin
+  focus: string,         // letzter Therapiefokus
+  agreement: string,     // letzte Vereinbarung
+  open: string,          // offene Punkte
+  transcript: string,    // aktuelles Diktat (aktuelle Sitzung)
+  summary: {
+    core: string,        // Kernpunkte
+    agreement: string,   // Absprachen
+    open: string,        // Offene Punkte
+    watch: string        // Beobachtungsfokus
+  },
+  prep: {
+    anchor: string,      // Woran anknüpfen
+    opening: string,     // Einstiegsfrage
+    caution: string      // Vorsicht/fachlich prüfen
+  },
+  currentSessionId: string,
+  sessions: Session[]    // archivierte Sitzungen
+}
+```
+
+**Migration:** `normalizePatient()` in `app.js` mappt alte Felder (`followUpDate`/`followUpTime`) auf das neue Schema (`nextDate`/`nextTime`). Vorhandene localStorage-Daten aus `STORAGE_KEY = "praxismemo-demo-v7"` (alter Demo-Stand) werden NICHT migriert — neuer Key `"praxismemo-v8"` startet fresh. Das ist beabsichtigt.
+
+### Session (archivierte Sitzung)
+```js
+{
+  id: string,
+  date: string,          // ISO "YYYY-MM-DD"
+  time: string,          // "HH:MM"
+  status: "Geprüft" | "Entwurf",
+  focus: string,
+  transcript: string,
+  summary: { core, agreement, open, watch },
+  prep: { anchor, opening, caution }
+}
+```
+
+### Backup-Format (JSON)
+```json
+{
+  "schema": "praxismemo-backup",
+  "version": 2,
+  "savedAt": "2026-05-10T14:30:00.000Z",
+  "patients": [ ... ]
+}
+```
+
+---
+
+## 3. Architektur & Datenfluss
+
+```
+Browser (index.html + app.js)
+  │   Spricht NUR mit dem eigenen Server (127.0.0.1:3000) — niemals mit
+  │   externen Diensten. Kein CORS, kein Cloud-Call, keine Web Speech API.
+  │
+  ├── localStorage["praxismemo-v8"]     ← primärer State
+  │
+  ├── /api/load              (GET)   ← Server-Daten laden
+  ├── /api/save              (POST)  ← nach Änderung (650ms debounced)
+  ├── /api/backup            (POST)  ← manuelles Backup
+  ├── /api/transcribe        (POST)  ← Audio-Blob → Whisper → Text
+  ├── /api/transcribe-status (GET)   ← faster-whisper verfügbar?
+  ├── /api/structure         (POST)  ← Transkript → strukturiertes JSON
+  └── /api/structure-status  (GET)   ← Ollama erreichbar?
+
+Python-Server (praxis_memo_server.py)
+  ├── Statische Dateien servieren (index.html, app.js, styles.css)
+  ├── Daten atomar schreiben (os.replace via .tmp)
+  ├── Auto-Backup alle 30 Min (on-save-trigger)
+  ├── Backup-Pruning: max. 30/Tag, 90 Tage Aufbewahrung
+  ├── Whisper-Transkription (faster-whisper "base", lazy-loaded, gecacht)
+  ├── Ollama-Proxy (qwen2.5:3b → /api/chat)
+  ├── Audio-Temp in data/tmp/ (beim Start gesäubert, max 50 MB pro Aufnahme)
+  └── Fehler-Log in data/server.log
+
+Ollama (separater lokaler Dienst auf 127.0.0.1:11434)
+  └── nur vom Python-Server angesprochen, NICHT vom Browser
+```
+
+### Speicher-Hierarchie beim Start
+1. `renderAll()` mit localStorage-Daten (sofort sichtbar)
+2. `hydrateFromServer()` lädt Server-Daten → überschreibt localStorage wenn Server-Daten vorhanden
+3. `checkAutoSwitchOnStart()` — schaltet auf anstehenden Patienten
+4. `checkKiAvailability()` + `checkWhisperAvailability()` — Status-Checks
+
+---
+
+## 4. KI-Funktionen
+
+### 4.1 Diktat (Sprache → Text)
+
+**Nur ein Pfad: faster-whisper lokal.** Aus Datenschutzgründen wurde der Web-Speech-API-Fallback komplett entfernt — der hätte Audio an Google/Microsoft gesendet.
+
+**Ablauf:** Browser nimmt mit `MediaRecorder` auf → Audio-Blob (WebM/OGG Opus) per POST an `/api/transcribe` → Python schreibt in `data/tmp/audio-*.webm` → faster-whisper transkribiert → Datei wird gelöscht → Text zurück.
+
+**Wenn faster-whisper nicht installiert ist:** Klare Meldung, kein Fallback.
+
+**Schutz:**
+- Audio > 50 MB → 413 vom Server
+- Audio < 4 KB (zu kurz) → Toast, kein POST
+- Temp-Datei wird beim Server-Start ge-`unlink`-t und nach jeder Transkription
+- Bei Patientenwechsel während laufender Transkription: Text wird trotzdem im richtigen Patienten gespeichert (`lockedPatientUid`)
+
+**Whisper-Modell:** `base` (~150 MB). `small` war zu langsam auf Praxis-Hardware. `base` reicht für Deutsch in ruhiger Umgebung.
+
+**Wo im Code:**
+- Browser: `checkWhisperAvailability()`, `startMediaRecordingForField()`, `sendAudioForTranscription()`, `stopDictation()`
+- Server: `transcribe_audio()`, `_load_whisper_model()`
+
+### 4.2 Strukturierung (Text → Felder)
+
+**Modell:** Ollama `qwen2.5:3b`, lokal auf 127.0.0.1:11434.
+
+**Wichtig:** Browser ruft NICHT direkt Ollama auf (CORS-Probleme + Datenflusskontrolle). Stattdessen Server-Proxy:
+
+```
+Browser → POST /api/structure { transcript } → Python → POST 11434/api/chat → JSON zurück
+```
+
+**Ollama-Aufruf-Parameter:**
+- `model: "qwen2.5:3b"` (war qwen2.5:7b — zu langsam auf NUC, ~120s pro Memo)
+- `format: "json"` — erzwingt strict JSON von Ollama
+- `temperature: 0.1` — deterministisch
+- `stream: false`
+- System-Prompt: Rolle als medizinisches Dokumentationssystem
+
+**JSON-Extraktion:** `content.find("{") ... content.rfind("}")` als Sicherheitsnetz.
+
+**Schutz vor Datenkorruption bei Auto-Switch:**  
+Während laufender Strukturierung wird `busyOperation = true` gesetzt → `checkAutoSwitch` blockiert. Die Strukturierung merkt sich den `lockedUid` und schreibt das Ergebnis in den ursprünglichen Patienten, auch wenn die Auswahl wechselt. Tab-Wechsel auf "Prüfen" passiert nur, wenn der Patient noch ausgewählt ist.
+
+**Wo im Code:**
+- Browser: `structureTranscript()`, `checkKiAvailability()`
+- Server: `structure_via_ollama()`, `ollama_available()`
+
+---
+
+## 5. Workflow der Ärztin
+
+```
+Termin steht bevor (5 Min vorher)
+  → App wechselt automatisch zu Patient + Tab "Anknüpfen"
+  → Miriam sieht Vorbereitung aus letzter Sitzung
+
+Sitzung findet statt
+
+Nach der Sitzung (bis 90 Min danach)
+  → App wechselt automatisch zu Patient + Tab "Einsprechen"
+  → Miriam klickt Mikrofon-Button, spricht Nachnotiz
+  → Klickt nochmal → "Wird verarbeitet…" (10–20 Sek)
+  → Text erscheint im Transkript-Feld
+  → Klickt "Strukturieren" → KI verteilt auf 4 Felder
+  → Tab "Prüfen": Felder kontrollieren, ggf. anpassen
+  → "Geprüft speichern" → Sitzung wird archiviert, Tab "Anknüpfen" öffnet sich
+  → Nächsten Termin in "Datum & Uhrzeit" eintragen → fertig
+```
+
+**Auto-Switch-Logik** (`checkAutoSwitchOnStart` + `checkAutoSwitch`):
+- Beim Start: Fenster −90 bis +30 Minuten um jeden Tages-Termin
+- Minütlicher Check: Fenster −5 Min (→ Prep-Tab) bis −0 Min / +90 Min (→ Record-Tab)
+- Wechselt nur wenn `selectedUid !== patient.uid` (kein Loop)
+
+**Auto-Switch-Schutz** (`autoSwitchBlocked()`):
+- Während Aufnahme (`isRecording`)
+- Während Transkription oder KI-Strukturierung (`busyOperation`)
+- 30 Sek. nach letzter Tastatur-/Maus-Eingabe (`lastUserInputAt`)
+
+So unterbricht die App keine laufende Bearbeitung, auch wenn ein Termin ansteht.
+
+---
+
+## 6. Kalender-Situation
+
+**Wichtig:** Miriam darf Termine aus datenschutzrechtlichen Gründen NUR in Psyprax führen. Kein Sync mit Google, Outlook oder Apple Kalender möglich.
+
+**Aktuelle Lösung:** Termine werden direkt in der App gepflegt — pro Patient `nextDate` + `nextTime`. Das ist ein einmaliger Aufwand beim ersten Anlegen eines Patienten. Danach trägt sie nach jeder Sitzung den nächsten Termin ein (5 Sekunden).
+
+**Kein `.ics`-Import** implementiert. Das Feld ist offen, falls Psyprax jemals einen lokalen Export ermöglicht.
+
+---
+
+## 7. Backup
+
+| Mechanismus | Wann | Wo |
+|---|---|---|
+| Auto (Server) | Alle 30 Min, on-save-trigger | `backups/YYYY-MM-DD/praxismemo-auto-*.json` |
+| Manuell (Server) | Button-Klick | `backups/YYYY-MM-DD/praxismemo-manuell-*.json` |
+| Browser-Download | Bei jedem Backup-Klick zusätzlich | Downloads-Ordner, `praxismemo-backup-*.json` |
+| Restore | Button → Datei wählen | Überschreibt aktive Daten nach Bestätigung |
+
+**Pruning:** max. 30 Backups/Tag, ältere Tages-Ordner nach 90 Tagen.  
+**Atomares Schreiben:** `write_json_atomic()` — schreibt in `.tmp`, dann `os.replace()`.
+
+---
+
+## 8. Offene Punkte / nächste Schritte
+
+### Bestätigt offen
+- **Miriams RAM-Angabe fehlt noch** (Intel NUC 2022, vermutlich 16 GB). Aktuell qwen2.5:3b + whisper base — läuft auch auf 8 GB. Falls 16+ GB vorhanden: in `KI einrichten.bat` `qwen2.5:3b` auf `qwen2.5:7b` und whisper `base` auf `small` heben, dann ist die Strukturierung präziser.
+- **Kein Import aus Psyprax.** Psyprax hat keinen bekannten direkten Datenexport für Termine. Wenn sich das ändert, wäre ein `.ics`-Reader der naheliegende Ansatz (Datei in `data/calendar.ics` legen, App liest alle 5 Min).
+
+### Empfohlen
+- **Verschlüsselung der Daten** sobald echte Patientendaten genutzt werden. `praxismemo-data.json` liegt aktuell im Klartext. Ansatz: AES-256 via Python `cryptography`-Paket, Passwort beim Server-Start abfragen.
+- **Passwortschutz für den Server.** Aktuell ist `http://127.0.0.1:3000` ohne Auth erreichbar. Für eine Einzelnutzerin im Praxisbetrieb akzeptabel, aber ein einfaches Server-seitiges Token wäre besser.
+- **Psyprax-RAM-abhängige Modellwahl** in `KI einrichten.bat` automatisieren: `wmic MemoryChip get Capacity` auslesen, bei < 12 GB auf kleinere Modelle wechseln.
+
+---
+
+## 9. Datei-Übersicht
+
+| Datei | Zweck | Letzte Änderung |
+|---|---|---|
+| `index.html` | App-Struktur, kein JS | 2026-05-10 |
+| `app.js` | Gesamte App-Logik (~1200 Zeilen) | 2026-05-10 |
+| `styles.css` | Design, unverändert bis auf neue Klassen am Ende | 2026-05-10 |
+| `praxis_memo_server.py` | Lokaler HTTP-Server + Whisper-Transkription | 2026-05-10 |
+| `Start Praxis Memo.bat` | Startet Python-Server, öffnet Browser | unverändert |
+| `KI einrichten.bat` | Installiert Ollama + faster-whisper + Modelle | 2026-05-10 |
+| `Datenordner oeffnen.bat` | Öffnet data/ und backups/ im Explorer | unverändert |
+| `Paket erstellen.bat` | Packt Lieferdateien als ZIP (ohne data/) | 2026-05-10 |
+| `README_PC_INSTALLATION.txt` | Anleitung für Miriam | veraltet, Update empfohlen |
+| `data/` | Arbeitsdaten, nicht ins Repo | — |
+| `backups/` | Backups, nicht ins Repo | — |
+| `docs/HANDOVER.md` | Dieses Dokument | 2026-05-10 |
+
+### Gelöschte Dateien
+- `PraxisMemo-PC/` — war ein vollständiges Duplikat aller App-Dateien
+- `praxismemo-demo-strato.zip` — Build-Artefakt
+- `PraxisMemo-PC.zip` — Build-Artefakt
+- `__pycache__/` — Python-Cache
+
+---
+
+## 10. Wichtige Hinweise für die nächste KI
+
+- **Kein Framework, kein Build-Step.** Alles läuft direkt im Browser. Keine npm, kein Webpack, kein TypeScript. Änderungen an `.js` und `.html` sind sofort wirksam.
+- **Design nicht anfassen.** `styles.css` bleibt wie ist. Neue Klassen ans Ende anhängen. Keine bestehenden Klassen umbenennen.
+- **`STORAGE_KEY = "praxismemo-v8"`** — wenn Datenmodell inkompatibel geändert wird, auf v9 bumpen und in `normalizePatient()` migrieren.
+- **`normalizePatient()` ist der Migrations-Einstiegspunkt.** Jede strukturelle Datenänderung muss dort abwärtskompatibel gemacht werden.
+- **Python-Server braucht keine Abhängigkeiten außer `faster-whisper`** (nur für Diktat). Alles andere ist Standardbibliothek.
+- **Ollama muss separat laufen.** Die App prüft `http://localhost:11434/api/tags` beim Start. Wenn Ollama nicht läuft, ist Strukturierung deaktiviert, aber der Rest funktioniert.
+- **Miriam hat kein technisches Verständnis.** Jede Änderung an der UX muss selbsterklärend sein. Keine Dialoge mit mehr als zwei Optionen. Keine Fachbegriffe.
+- **Datenschutz ist kritisch.** Die App soll nie Audio oder Patientendaten nach außen senden. Vor jeder Änderung am Netzwerk-Code prüfen.

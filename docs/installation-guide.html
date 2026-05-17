@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Praxis Memo — Installations-Anleitung für CMG</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 14mm 14mm; }
+  * { box-sizing: border-box; }
+  html, body { font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; color: #1a1a1a; line-height: 1.35; font-size: 10.5pt; margin: 0; padding: 0; }
+  h1 { font-size: 18pt; margin: 0 0 2mm 0; letter-spacing: -0.3pt; }
+  h2 { font-size: 12pt; margin: 6mm 0 2mm 0; padding: 2mm 3mm; background: #1a1a1a; color: #fff; border-radius: 2mm; letter-spacing: 0.2pt; page-break-after: avoid; }
+  h3 { font-size: 10.5pt; margin: 3mm 0 1mm 0; color: #1a1a1a; page-break-after: avoid; }
+  p { margin: 0 0 1.5mm 0; }
+  ul, ol { margin: 0 0 2mm 5mm; padding: 0; }
+  li { margin-bottom: 0.5mm; }
+  table { width: 100%; border-collapse: collapse; margin: 1mm 0 3mm 0; font-size: 9.5pt; }
+  th { background: #f0f0f0; text-align: left; padding: 1.2mm 2mm; border-bottom: 0.4pt solid #555; font-weight: 600; }
+  td { padding: 1.2mm 2mm; border-bottom: 0.3pt solid #ddd; vertical-align: top; }
+  td.size, th.size { text-align: right; white-space: nowrap; width: 18mm; }
+  code, kbd { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 9.5pt; background: #f0f0f0; padding: 0.3mm 1.2mm; border-radius: 1mm; }
+  .meta { color: #666; font-size: 9pt; margin-bottom: 4mm; border-bottom: 0.3pt solid #ccc; padding-bottom: 2mm; }
+  .badge { display: inline-block; font-size: 8.5pt; padding: 0.3mm 1.5mm; border-radius: 1mm; font-weight: 600; }
+  .ok { background: #e0f0e0; color: #1d5b2a; }
+  .warn { background: #fff2cc; color: #7a5e00; }
+  .crit { background: #ffe0e0; color: #8a1a1a; }
+  .col2 { column-count: 2; column-gap: 6mm; column-rule: 0.3pt solid #ddd; }
+  .step { background: #f8f8f8; border-left: 1.2mm solid #1a1a1a; padding: 2mm 3mm; margin: 1.5mm 0; border-radius: 0 1.5mm 1.5mm 0; page-break-inside: avoid; }
+  .step-num { display: inline-block; background: #1a1a1a; color: #fff; font-weight: 700; width: 6mm; height: 6mm; border-radius: 50%; text-align: center; line-height: 6mm; margin-right: 2mm; font-size: 9pt; }
+  .step strong { font-size: 10.5pt; }
+  .step-time { float: right; color: #666; font-size: 8.5pt; font-style: italic; }
+  .pageBreak { page-break-before: always; }
+  .nowrap { white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<h1>Praxis Memo — Installation bei Miriam</h1>
+<p class="meta">Knappe Referenz für CMG • Stand 2026-05-17 • NUC 2022 / Windows • <span class="nowrap">~30 Min effektiv</span></p>
+
+<h2>Vor dem Besuch — bei dir zuhause</h2>
+
+<table>
+  <tr><th>Was</th><th class="size">Größe</th><th>Quelle</th></tr>
+  <tr><td>App-Ordner als ZIP packen</td><td class="size">~200 KB</td><td>`Miriams Memory Assistent/` → ZIP</td></tr>
+  <tr><td>Ollama-Installer downloaden</td><td class="size">~150 MB</td><td><code>https://ollama.com/download/OllamaSetup.exe</code></td></tr>
+  <tr><td>Beides auf USB-Stick „GRABINGER"</td><td class="size">—</td><td>Optional: Python-3.12-Installer (Notnagel falls MS-Store streikt)</td></tr>
+</table>
+
+<h3>Vorab-Klärung per Nachricht an Miriam</h3>
+<ul>
+  <li><strong>„Hast du ein Mikrofon am PC oder ein Headset?"</strong> — NUCs haben oft keins. Wenn nein: USB-Headset mitnehmen.</li>
+  <li><strong>„Geht WLAN bei dir, oder soll ich Hotspot mitbringen?"</strong> — 3 GB Downloads brauchen stabile Verbindung.</li>
+  <li><strong>Hast du eine Datenschutzbeauftragte?"</strong> — Kontakt für Prod-Phase später relevant.</li>
+</ul>
+
+<h2>Was mitnehmen</h2>
+
+<table>
+  <tr><th>Item</th><th>Pflicht?</th><th>Hinweis</th></tr>
+  <tr><td>USB-Stick „GRABINGER" mit App + Ollama-Installer</td><td><span class="badge crit">PFLICHT</span></td><td>USB-A reicht; NUC 2022 hat beides</td></tr>
+  <tr><td>USB-Headset / USB-Mikrofon</td><td><span class="badge warn">je nach Klärung</span></td><td>Falls NUC kein Mic hat</td></tr>
+  <tr><td>Smartphone als Hotspot-Backup</td><td><span class="badge warn">empfohlen</span></td><td>Falls ihr WLAN lahm</td></tr>
+  <tr><td>Laptop für AnyDesk-Pre-Install</td><td><span class="badge ok">nur Szenario C</span></td><td>Wenn ihr remote vorinstalliert</td></tr>
+  <tr><td>Notizblock + Stift</td><td><span class="badge crit">PFLICHT</span></td><td>Walkthrough-Notizen sammeln</td></tr>
+</table>
+
+<h2>Reihenfolge bei Miriam</h2>
+
+<div class="step">
+  <span class="step-time">~5 Min</span>
+  <p><span class="step-num">1</span><strong>App-Ordner kopieren</strong></p>
+  <p>USB-Stick rein, ZIP nach <code>C:\Users\Miriam\Documents\PraxisMemo\</code> entpacken. Ordner ihr zeigen — wichtig für ihr Mentalmodell.</p>
+</div>
+
+<div class="step">
+  <span class="step-time">~3 Min</span>
+  <p><span class="step-num">2</span><strong>Python prüfen / installieren</strong></p>
+  <p>Doppelklick auf <code>KI einrichten.bat</code>. Wenn Python fehlt → Skript öffnet automatisch den MS-Store → sie klickt „Installieren". Dann <code>.bat</code> nochmal starten.</p>
+</div>
+
+<div class="step">
+  <span class="step-time">~15-30 Min, läuft alleine</span>
+  <p><span class="step-num">3</span><strong>KI-Stack einrichten</strong></p>
+  <p>Das Skript läuft 6 Schritte durch: VC++ Redist → Ollama-Installer (sie klickt einmal „Installieren") → faster-whisper via pip → Whisper-Modell <span class="nowrap">(~150 MB)</span> → <code>qwen2.5:3b</code> via Ollama <span class="nowrap">(~2 GB)</span> → Desktop-Verknüpfung.</p>
+  <p><strong>In dieser Zeit:</strong> Kaffee, über ihre Praxis quatschen. NICHT starren.</p>
+</div>
+
+<div class="step">
+  <span class="step-time">~1 Min</span>
+  <p><span class="step-num">4</span><strong>App starten — Desktop-Icon „Praxis Memo"</strong></p>
+  <p>Doppelklick. Schwarzes Konsolenfenster geht auf <strong>(muss offen bleiben!)</strong>, Browser öffnet <code>http://127.0.0.1:3000/</code> automatisch.</p>
+</div>
+
+<div class="step">
+  <span class="step-time">~2 Min</span>
+  <p><span class="step-num">5</span><strong>Mikrofon-Berechtigung testen</strong></p>
+  <p>Beim ersten Diktat-Klick: Browser fragt „Mikrofon erlauben?" → Ja. Kurz reinsprechen, Transkript prüfen.</p>
+</div>
+
+<div class="step">
+  <span class="step-time">offen</span>
+  <p><span class="step-num">6</span><strong>Walkthrough starten</strong></p>
+  <p>Ab hier → <code>docs/walkthrough-checklist.md</code>. Fragen NIE als Liste vorlegen, immer im Kontext stellen wenn sie das Feature gerade erlebt hat.</p>
+</div>
+
+<div class="pageBreak"></div>
+
+<h2>Troubleshooting Cheat-Sheet</h2>
+
+<table>
+  <tr><th>Symptom</th><th>Fix</th></tr>
+  <tr><td>„Python nicht gefunden"</td><td>Skript öffnet MS-Store. Nach Install Skript neu starten.</td></tr>
+  <tr><td>Ollama-Installer hängt</td><td>Browser direkt: <code>ollama.com/download</code> → manuell installieren → <code>.bat</code> nochmal.</td></tr>
+  <tr><td><code>ollama pull qwen2.5:3b</code> bricht ab</td><td>Im Terminal manuell wiederholen — resumed automatisch.</td></tr>
+  <tr><td>KI antwortet nicht</td><td>Terminal: <code>ollama list</code> → wenn Modell da, <code>ollama run qwen2.5:3b</code> testen.</td></tr>
+  <tr><td>Mikrofon stumm</td><td>Windows-Einstellungen → Datenschutz → Mikrofon → für Browser erlauben.</td></tr>
+  <tr><td>Browser zeigt nichts</td><td>URL: <code>http://127.0.0.1:3000/</code> (NICHT <code>localhost</code> falls Edge IPv6-zickig).</td></tr>
+  <tr><td>Schwarzes Fenster weg → App tot</td><td>Doppelklick Desktop-Icon → startet neu. Daten sind sicher in <code>data/</code>.</td></tr>
+  <tr><td>Update nötig (später)</td><td>Doppelklick <code>Praxis Memo Update.bat</code> — macht automatisch Backup + Update.</td></tr>
+</table>
+
+<h2>Was Miriam danach selbst kann (Daily-Use)</h2>
+
+<div class="col2">
+  <p><strong>Starten:</strong> Doppelklick Desktop-Icon „Praxis Memo". Schwarzes Fenster offen lassen.</p>
+  <p><strong>Beenden:</strong> Fenster schließen. Daten in <code>data/praxismemo-data.json</code>.</p>
+  <p><strong>Backup manuell:</strong> Button „Backup erstellen" im Browser → Datei im Download-Ordner.</p>
+  <p><strong>Auto-Backups:</strong> Alle 30 Min, landen in <code>backups/YYYY-MM-DD/</code>.</p>
+  <p><strong>Update:</strong> Doppelklick <code>Praxis Memo Update.bat</code>. Sichert vorher automatisch.</p>
+  <p><strong>Problem:</strong> Dich anrufen. Wenn dringend: <code>KI einrichten.bat</code> nochmal — repariert oft alles.</p>
+</div>
+
+<h2>Datei-Pfade auf ihrem PC</h2>
+
+<table>
+  <tr><th>Pfad</th><th>Was</th></tr>
+  <tr><td><code>C:\Users\Miriam\Documents\PraxisMemo\</code></td><td>App-Verzeichnis</td></tr>
+  <tr><td><code>...\data\praxismemo-data.json</code></td><td>Aktive Arbeitsdaten — Hauptdatei</td></tr>
+  <tr><td><code>...\backups\YYYY-MM-DD\</code></td><td>Tägliche Auto-Backups (max. 30/Tag, 90 Tage)</td></tr>
+  <tr><td><code>...\backups\vor-update\</code></td><td>Backups die Update-Bat anlegt</td></tr>
+  <tr><td><code>...\data\server.log</code></td><td>Server-Log (keine Patientendaten drin — Stand Demo)</td></tr>
+  <tr><td><code>%USERPROFILE%\.ollama\models\</code></td><td>Wo Ollama die KI-Modelle ablegt (~2 GB)</td></tr>
+</table>
+
+<h2>Sicherheits-Reminders (für dich, nicht für sie)</h2>
+
+<ul>
+  <li><span class="badge crit">DEMO</span> Aktueller Stand ist Walkthrough-Vehikel, NICHT für echte Patientendaten. README enthält explizit den Demo-Hinweis.</li>
+  <li><span class="badge warn">PROD</span> Bevor sie produktiv geht: <code>docs/prod-spec.md</code> abarbeiten — Encryption, CSRF, §630f Audit-Log etc.</li>
+  <li><span class="badge ok">JETZT</span> Demo ist genug für „schau mal, so könnte das aussehen" + Workflow-Feedback einsammeln.</li>
+</ul>
+
+</body>
+</html>

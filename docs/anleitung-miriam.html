@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Praxis Memo — Anleitung</title>
+<style>
+  @page { size: A4; margin: 16mm 16mm 16mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; color: #1a1a1a; line-height: 1.45; font-size: 13pt; margin: 0; padding: 0; }
+  h1 { font-size: 26pt; margin: 0 0 1mm 0; letter-spacing: -0.5pt; }
+  .sub { font-size: 12pt; color: #666; margin: 0 0 8mm 0; }
+  h2 { font-size: 16pt; margin: 7mm 0 3mm 0; padding: 3mm 5mm; background: #1a73e8; color: #fff; border-radius: 3mm; page-break-after: avoid; }
+  h2.green { background: #1e8e3e; }
+  h2.orange { background: #ea8600; }
+  h2.red { background: #c5221f; }
+  ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; }
+  ol.steps li { counter-increment: s; position: relative; padding: 3mm 0 3mm 16mm; margin: 0; min-height: 14mm; }
+  ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 2mm; width: 11mm; height: 11mm; border-radius: 50%; background: #1a73e8; color: #fff; font-weight: 700; font-size: 16pt; display: flex; align-items: center; justify-content: center; }
+  h2.green + ol.steps li::before { background: #1e8e3e; }
+  h2.orange + ol.steps li::before { background: #ea8600; }
+  ol.steps li b { font-size: 14pt; }
+  ol.steps li .hint { display: block; font-size: 11pt; color: #555; margin-top: 1mm; }
+  .callout { background: #fff8e1; border-left: 4mm solid #f9ab00; padding: 4mm 5mm; margin: 4mm 0; border-radius: 0 2mm 2mm 0; font-size: 12pt; }
+  .callout b { color: #b06000; }
+  .help { background: #fce8e6; border-radius: 3mm; padding: 4mm 5mm; margin-top: 3mm; font-size: 12pt; }
+  .help b { color: #c5221f; }
+  footer { margin-top: 8mm; padding-top: 3mm; border-top: 1px solid #ddd; font-size: 10pt; color: #888; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Praxis Memo</h1>
+<p class="sub">So nimmst Du Notizen auf — Schritt für Schritt.</p>
+
+<h2 class="green">Aufnahme machen</h2>
+<ol class="steps">
+  <li><b>Doppelklick</b> auf das Symbol <b>„Praxis Memo"</b> am Desktop.
+    <span class="hint">Ein schwarzes Fenster öffnet sich — das muss offen bleiben!</span></li>
+  <li>Dein <b>Browser</b> öffnet sich automatisch.
+    <span class="hint">Falls beim ersten Mal nach dem Mikrofon gefragt wird: <b>„Zulassen"</b> anklicken.</span></li>
+  <li>Auf den <b>roten Aufnahme-Knopf</b> klicken und sprechen.</li>
+  <li>Auf <b>„Stopp"</b> klicken, dann <b>„Speichern"</b>.</li>
+</ol>
+
+<div class="callout">
+  <b>Wichtig:</b> Das <b>schwarze Fenster</b> niemals schließen, solange Du arbeitest. Nur den Browser oben rechts schließen, wenn Du fertig bist. Beim nächsten Start: wieder Doppelklick auf „Praxis Memo".
+</div>
+
+<h2>Alte Aufnahmen ansehen</h2>
+<ol class="steps">
+  <li>Alle Aufnahmen stehen in der <b>Liste</b> im Browser.</li>
+  <li><b>Klick auf einen Eintrag</b> → Du siehst den Text und kannst die Aufnahme anhören.</li>
+</ol>
+
+<h2 class="orange">Einmal im Monat: Update</h2>
+<ol class="steps">
+  <li><b>Doppelklick</b> auf <b>„Praxis Memo Update"</b> am Desktop.</li>
+  <li>Kurz warten, bis das Fenster sich schließt. Fertig.</li>
+</ol>
+
+<div class="help">
+  <b>Wenn etwas nicht funktioniert:</b><br>
+  1. Alle Fenster schließen, PC neu starten, nochmal „Praxis Memo" doppelklicken.<br>
+  2. Falls es weiter hakt: <b>Anruf bei CMG</b>.
+</div>
+
+<footer>Praxis Memo · Version Mai 2026</footer>
+
+</body>
+</html>
