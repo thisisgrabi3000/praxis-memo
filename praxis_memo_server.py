@@ -5,6 +5,7 @@ import json
 import logging
 import mimetypes
 import os
+import re
 import ssl
 import threading
 import time
@@ -150,12 +151,29 @@ def _check_word_limit(transcript: str) -> None:
         )
 
 
+# CJK characters that small multilingual LLMs (e.g. qwen2.5:3b) sometimes drift into
+# mid-sentence on German prompts. Includes Han, Hiragana, Katakana, Hangul, fullwidth forms.
+_CJK_PATTERN = re.compile(
+    r"[　-〿぀-ゟ゠-ヿ㐀-䶿一-鿿가-힯＀-￯]+"
+)
+
+
+def _strip_cjk(text: str) -> str:
+    if not isinstance(text, str):
+        return text
+    cleaned = _CJK_PATTERN.sub(" ", text)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
 def _structure_messages(transcript: str) -> list:
     user_prompt = (
         "Du bist ein Dokumentationssystem für eine psychotherapeutische Praxis. "
         "Analysiere die folgende Sitzungs-Nachnotiz einer Therapeutin und verteile den Inhalt "
         "präzise auf vier Felder.\n\n"
         f"Nachnotiz:\n{transcript}\n\n"
+        "WICHTIG: Antworte AUSSCHLIESSLICH auf Deutsch. Verwende KEINE chinesischen, "
+        "japanischen, koreanischen oder andere fremdsprachigen Schriftzeichen — nur deutsche "
+        "Buchstaben, Umlaute und Standard-Satzzeichen.\n\n"
         "Antworte ausschließlich mit einem JSON-Objekt (kein Text davor oder danach):\n"
         "{\n"
         '  "core": "Kernpunkte und wichtigste Themen dieser Sitzung in 2-3 Sätzen",\n'
@@ -165,7 +183,12 @@ def _structure_messages(transcript: str) -> list:
         "}"
     )
     return [
-        {"role": "system", "content": "Du bist ein präzises medizinisches Dokumentationssystem. Antworte ausschließlich mit dem geforderten JSON-Objekt ohne weitere Erklärungen."},
+        {"role": "system", "content": (
+            "Du bist ein präzises medizinisches Dokumentationssystem für eine deutschsprachige Praxis. "
+            "Antworte ausschließlich auf Deutsch und ausschließlich mit dem geforderten JSON-Objekt, "
+            "ohne weitere Erklärungen. Verwende niemals chinesische, japanische, koreanische oder "
+            "andere fremdsprachige Schriftzeichen."
+        )},
         {"role": "user", "content": user_prompt},
     ]
 
@@ -177,7 +200,13 @@ def _extract_json(content: str) -> dict:
     end = content.rfind("}")
     if start == -1 or end == -1 or end <= start:
         raise RuntimeError("Kein JSON in Modell-Antwort")
-    return json.loads(content[start:end + 1])
+    parsed = json.loads(content[start:end + 1])
+    # Strip CJK glyphs the model may have leaked into German strings (Plan B safety net).
+    if isinstance(parsed, dict):
+        for key, value in list(parsed.items()):
+            if isinstance(value, str):
+                parsed[key] = _strip_cjk(value)
+    return parsed
 
 
 def structure_via_ollama(transcript: str) -> dict:
