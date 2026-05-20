@@ -6,7 +6,6 @@ import logging
 import mimetypes
 import os
 import re
-import ssl
 import threading
 import time
 import urllib.parse
@@ -35,24 +34,6 @@ OLLAMA_MODEL = "qwen2.5:3b"
 OLLAMA_TIMEOUT_SECONDS = 240
 OLLAMA_NUM_CTX = 12288   # ~5000 Wörter Eingabe sicher verarbeitbar
 MAX_TRANSCRIPT_WORDS = 5000  # darüber: Server lehnt ab (Inhalt würde verloren gehen)
-
-# Demo-Modus: wenn OPENAI_API_KEY gesetzt ist, geht Strukturierung an OpenAI statt Ollama
-# NUR FÜR DEMO MIT FIKTIVEN DATEN — verlässt den PC, geht in die USA
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
-OPENAI_MODEL = "gpt-4o-mini"
-OPENAI_TIMEOUT_SECONDS = 60
-
-
-def _https_context() -> ssl.SSLContext:
-    """SSL context with certifi CA bundle if available — fixes macOS python.org cert issue."""
-    try:
-        import certifi  # type: ignore
-        return ssl.create_default_context(cafile=certifi.where())
-    except ImportError:
-        return ssl.create_default_context()
-
-
-_HTTPS_CTX = _https_context()
 
 
 def ensure_dirs() -> None:
@@ -237,45 +218,8 @@ def structure_via_ollama(transcript: str) -> dict:
     return _extract_json(content)
 
 
-def openai_available() -> bool:
-    return bool(OPENAI_API_KEY)
-
-
-def structure_via_openai(transcript: str) -> dict:
-    """DEMO-Modus: Strukturierung über OpenAI. Sendet Transkript an US-Server!"""
-    _check_word_limit(transcript)
-
-    body = json.dumps({
-        "model": OPENAI_MODEL,
-        "messages": _structure_messages(transcript),
-        "temperature": 0.1,
-        "response_format": {"type": "json_object"},
-    }).encode("utf-8")
-
-    req = urllib.request.Request(
-        "https://api.openai.com/v1/chat/completions",
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {OPENAI_API_KEY}",
-        },
-        method="POST",
-    )
-
-    with urllib.request.urlopen(req, timeout=OPENAI_TIMEOUT_SECONDS, context=_HTTPS_CTX) as resp:
-        response_data = json.loads(resp.read().decode("utf-8"))
-
-    choices = response_data.get("choices") or []
-    if not choices:
-        raise RuntimeError("OpenAI: keine Antwort")
-    content = (choices[0].get("message") or {}).get("content", "").strip()
-    return _extract_json(content)
-
-
 def structure_transcript(transcript: str) -> tuple[dict, str]:
-    """Returns (result_dict, mode) where mode is 'openai-demo' or 'local'."""
-    if openai_available():
-        return structure_via_openai(transcript), "openai-demo"
+    """Returns (result_dict, mode); mode is always 'local' (Ollama, on-device)."""
     return structure_via_ollama(transcript), "local"
 
 
@@ -373,11 +317,55 @@ def payload_from_request(handler: BaseHTTPRequestHandler):
     return json.loads(body.decode("utf-8"))
 
 
+# ---------- Request trust (DNS-rebinding + CSRF guard) ----------
+# The server binds 127.0.0.1, but binding alone does not stop a malicious web
+# page in the same browser from reaching it via DNS rebinding (the page rebinds
+# its own domain to 127.0.0.1, defeating the browser's same-origin/CORS checks).
+# Defense: only honour requests whose Host header names the loopback interface
+# literally, and reject any cross-origin POST. A rebound request still carries
+# the attacker's domain in Host/Origin, so these checks block it.
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def _host_is_loopback(host_header: str) -> bool:
+    """True if a Host header (host[:port]) names the loopback interface."""
+    if not host_header:
+        return False
+    try:
+        hostname = urllib.parse.urlsplit(f"//{host_header.strip()}").hostname
+    except ValueError:
+        return False
+    return hostname in LOOPBACK_HOSTS
+
+
+def _origin_is_loopback(origin: str) -> bool:
+    """True if an Origin/Referer URL points at the loopback interface."""
+    try:
+        hostname = urllib.parse.urlsplit(origin).hostname
+    except ValueError:
+        return False
+    return hostname in LOOPBACK_HOSTS
+
+
 class PraxisMemoHandler(BaseHTTPRequestHandler):
     server_version = "PraxisMemoLocal/2.0"
 
     def log_message(self, format, *args):  # noqa: A002
         return
+
+    def _is_trusted(self) -> bool:
+        # DNS-rebinding guard: Host must be a loopback literal, never a domain.
+        if not _host_is_loopback(self.headers.get("Host", "")):
+            return False
+        # CSRF guard: a cross-origin browser request carries a foreign Origin.
+        origin = self.headers.get("Origin")
+        if origin and not _origin_is_loopback(origin):
+            return False
+        # Belt-and-suspenders: modern browsers tag cross-site requests.
+        site = self.headers.get("Sec-Fetch-Site")
+        if site and site not in ("same-origin", "none"):
+            return False
+        return True
 
     def send_json(self, status: int, payload) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -389,6 +377,10 @@ class PraxisMemoHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
+        if not self._is_trusted():
+            self.send_error(403, "Forbidden")
+            return
+
         path = urllib.parse.urlparse(self.path).path
 
         if path == "/api/load":
@@ -405,15 +397,16 @@ class PraxisMemoHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/structure-status":
-            if openai_available():
-                self.send_json(200, {"available": True, "mode": "openai-demo"})
-            else:
-                self.send_json(200, {"available": ollama_available(), "mode": "local"})
+            self.send_json(200, {"available": ollama_available(), "mode": "local"})
             return
 
         self.serve_static(path)
 
     def do_POST(self) -> None:
+        if not self._is_trusted():
+            self.send_error(403, "Forbidden")
+            return
+
         path = urllib.parse.urlparse(self.path).path
         try:
             payload = payload_from_request(self)
@@ -543,13 +536,6 @@ def main() -> None:
     print(f"Daten:   {DATA_FILE}")
     print(f"Backups: {BACKUP_DIR}")
     print("")
-    if openai_available():
-        print("!" * 60)
-        print("DEMO-MODUS: Strukturierung laeuft ueber OpenAI (Cloud, USA)")
-        print("KEINE ECHTEN PATIENTENDATEN EINGEBEN!")
-        print("Zum Deaktivieren: OPENAI_API_KEY-Variable entfernen.")
-        print("!" * 60)
-        print("")
     print("Dieses Fenster offen lassen. Zum Beenden: Fenster schliessen oder Strg+C.")
     print("")
 

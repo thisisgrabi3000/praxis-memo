@@ -287,9 +287,8 @@ const contextHistory = document.querySelector("#contextHistory");
 const contextSessionCount = document.querySelector("#contextSessionCount");
 const kiStatus = document.querySelector("#kiStatus");
 const lengthWarning = document.querySelector("#lengthWarning");
-const demoBanner = document.querySelector("#demoBanner");
 const toast = document.querySelector("#toast");
-let kiMode = "local"; // 'local' (Ollama) oder 'openai-demo'
+let kiMode = "local"; // immer lokal (Ollama, on-device)
 const fieldDictationTargets = document.querySelectorAll("[data-field], [data-summary], [data-prep]");
 
 // ============================================================
@@ -877,7 +876,6 @@ async function checkKiAvailability() {
     kiAvailable = false;
   }
   renderKiStatus();
-  renderDemoBanner();
 }
 
 function renderKiStatus() {
@@ -886,16 +884,9 @@ function renderKiStatus() {
   kiStatus.className = `ki-status ${kiAvailable ? "ki-ok" : "ki-off"}`;
   if (!kiAvailable) {
     kiStatus.textContent = "KI nicht aktiv — 'KI einrichten.bat' ausführen oder Felder manuell füllen";
-  } else if (kiMode === "openai-demo") {
-    kiStatus.textContent = "KI bereit (Demo: OpenAI Cloud)";
   } else {
     kiStatus.textContent = "KI bereit (lokal)";
   }
-}
-
-function renderDemoBanner() {
-  if (!demoBanner) return;
-  demoBanner.hidden = kiMode !== "openai-demo";
 }
 
 async function structureTranscript() {
