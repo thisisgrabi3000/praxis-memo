@@ -60,7 +60,6 @@
   <tr><td>USB-Stick „GRABINGER" mit App + Ollama-Installer</td><td><span class="badge crit">PFLICHT</span></td><td>USB-A reicht; NUC 2022 hat beides</td></tr>
   <tr><td>USB-Headset / USB-Mikrofon</td><td><span class="badge warn">je nach Klärung</span></td><td>Falls NUC kein Mic hat</td></tr>
   <tr><td>Smartphone als Hotspot-Backup</td><td><span class="badge warn">empfohlen</span></td><td>Falls ihr WLAN lahm</td></tr>
-  <tr><td>Laptop für AnyDesk-Pre-Install</td><td><span class="badge ok">nur Szenario C</span></td><td>Wenn ihr remote vorinstalliert</td></tr>
   <tr><td>Notizblock + Stift</td><td><span class="badge crit">PFLICHT</span></td><td>Walkthrough-Notizen sammeln</td></tr>
 </table>
 
@@ -98,20 +97,14 @@
 </div>
 
 <div class="step">
-  <span class="step-time">~5 Min</span>
-  <p><span class="step-num">6</span><strong>AnyDesk installieren (für Remote-Support später)</strong></p>
-  <p>Doppelklick <code>AnyDesk.exe</code> im App-Ordner → „Installieren" wählen (NICHT „Now Run"). Nach Install: AnyDesk öffnet sich → ihre <strong>9-stellige AnyDesk-Adresse</strong> notieren. Dann <code>Einstellungen → Sicherheit → Unbeaufsichtigten Zugriff zulassen</code> aktivieren + <strong>festes Passwort setzen</strong> (in deinen Passwortmanager). Ab jetzt kannst du jederzeit live drauf, ohne dass sie etwas klicken muss.</p>
-</div>
-
-<div class="step">
   <span class="step-time">~2 Min</span>
-  <p><span class="step-num">7</span><strong>Update-Flow einmal live testen</strong></p>
+  <p><span class="step-num">6</span><strong>Update-Flow einmal live testen</strong></p>
   <p>Doppelklick <code>Praxis Memo Update.bat</code>. Muss durchlaufen: Backup → Code-Download von GitHub → Whisper-pip → Ollama-Pull → fertig. Beweist dass sie ab jetzt monatlich selbst updaten kann.</p>
 </div>
 
 <div class="step">
   <span class="step-time">offen</span>
-  <p><span class="step-num">8</span><strong>Walkthrough starten</strong></p>
+  <p><span class="step-num">7</span><strong>Walkthrough starten</strong></p>
   <p>Ab hier → <code>docs/walkthrough-checklist.md</code>. Fragen NIE als Liste vorlegen, immer im Kontext stellen wenn sie das Feature gerade erlebt hat.</p>
 </div>
 
@@ -129,7 +122,7 @@
   <tr><td>Browser zeigt nichts</td><td>URL: <code>http://127.0.0.1:3000/</code> (NICHT <code>localhost</code> falls Edge IPv6-zickig).</td></tr>
   <tr><td>Schwarzes Fenster weg → App tot</td><td>Doppelklick Desktop-Icon → startet neu. Daten sind sicher in <code>data/</code>.</td></tr>
   <tr><td>Update nötig (später)</td><td>Doppelklick <code>Praxis Memo Update.bat</code> — Backup + Code-Download von GitHub + KI-Update in einem.</td></tr>
-  <tr><td>Code-Update lädt nicht</td><td>Internet aus? Skript läuft trotzdem durch (KI-Update weiter), Code bleibt unverändert. Per AnyDesk drauf, manuell debuggen.</td></tr>
+  <tr><td>Code-Update lädt nicht</td><td>Internet aus? Skript läuft trotzdem durch (KI-Update weiter), Code bleibt unverändert. Beim nächsten Besuch vor Ort manuell debuggen.</td></tr>
   <tr><td>Nach Code-Update App kaputt</td><td>Backup liegt in <code>backups\vor-update\code-YYYY-MM-DD_HH-MM-SS\</code> — Files zurück in App-Ordner kopieren, fertig.</td></tr>
 </table>
 
@@ -155,7 +148,7 @@ gh release create v1.0.1 "$TMP/praxis-memo-app.zip" \
   --title "v1.0.1 — kurze Beschreibung" \
   --notes "Was sich geändert hat..."</pre>
   </li>
-  <li>Miriam anrufen: „Klick mal Update". Oder per AnyDesk selbst klicken. Fertig.</li>
+  <li>Miriam anrufen: „Klick mal Update" — oder beim nächsten Besuch vor Ort selbst auslösen. Fertig.</li>
 </ol>
 
 <p><strong>Repo:</strong> <code>https://github.com/thisisgrabi3000/praxis-memo</code> · <strong>Release-URL die die BAT zieht:</strong> <code>https://github.com/thisisgrabi3000/praxis-memo/releases/latest/download/praxis-memo-app.zip</code></p>
@@ -179,16 +172,16 @@ gh release create v1.0.1 "$TMP/praxis-memo-app.zip" \
   <tr><td><code>...\data\praxismemo-data.json</code></td><td>Aktive Arbeitsdaten — Hauptdatei</td></tr>
   <tr><td><code>...\backups\YYYY-MM-DD\</code></td><td>Tägliche Auto-Backups (max. 30/Tag, 90 Tage)</td></tr>
   <tr><td><code>...\backups\vor-update\</code></td><td>Backups die Update-Bat anlegt</td></tr>
-  <tr><td><code>...\data\server.log</code></td><td>Server-Log (keine Patientendaten drin — Stand Demo)</td></tr>
+  <tr><td><code>...\data\server.log</code></td><td>Server-Log (keine Patientendaten drin)</td></tr>
   <tr><td><code>%USERPROFILE%\.ollama\models\</code></td><td>Wo Ollama die KI-Modelle ablegt (~2 GB)</td></tr>
 </table>
 
-<h2>Sicherheits-Reminders (für dich, nicht für sie)</h2>
+<h2>Sicherheits-Status (für dich, nicht für sie)</h2>
 
 <ul>
-  <li><span class="badge crit">DEMO</span> Aktueller Stand ist Walkthrough-Vehikel, NICHT für echte Patientendaten. README enthält explizit den Demo-Hinweis.</li>
-  <li><span class="badge warn">PROD</span> Bevor sie produktiv geht: <code>docs/prod-spec.md</code> abarbeiten — Encryption, CSRF, §630f Audit-Log etc.</li>
-  <li><span class="badge ok">JETZT</span> Demo ist genug für „schau mal, so könnte das aussehen" + Workflow-Feedback einsammeln.</li>
+  <li><span class="badge warn">ÜBERGANG</span> Läuft im Übergangsbetrieb mit <strong>echten Patientendaten</strong> (seit Mai 2026). Der Demo-Modus (OpenAI-Cloud) wurde aus dem Code entfernt — App ist cloud-frei, Strukturierung nur über Ollama lokal.</li>
+  <li><span class="badge ok">AKTIV</span> Schutz aktuell: local-only (kein Internet-Zugriff auf Daten), Host-/Origin-Guard im Server (DNS-Rebinding + CSRF). <strong>BitLocker</strong> auf ihrem PC ist die wichtigste At-Rest-Schicht → <code>docs/bitlocker-datenschutz.pdf</code>.</li>
+  <li><span class="badge crit">OFFEN</span> Noch zu erledigen: §630f Änderungslog (append-only), Verschlüsselung at-rest <em>in</em> der App, Off-Site-Backup, DSB-Klärung. Fahrplan: <code>docs/prod-spec.md</code>.</li>
 </ul>
 
 </body>

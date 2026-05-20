@@ -1,7 +1,36 @@
 # Praxis Memo — Übergabedokument
 
-Letzte Aktualisierung: 2026-05-10  
+Letzte Aktualisierung: 2026-05-20  
 Kontext: Lokale Web-App für eine Psychotherapeutin (Miriam), entwickelt auf macOS, Zielplattform Windows-PC im Praxisbetrieb.
+
+---
+
+## 0. Änderungsprotokoll
+
+### 2026-05-20 — Security-Härtung + Doku-Bereinigung (Release v1.0.2)
+
+> **Status-Wechsel:** Die App wird jetzt mit **echten Patientendaten** betrieben (nicht mehr nur Demo). Damit greifen DSGVO Art. 9/32 und §630f BGB ab sofort.
+
+**Code:**
+- `praxis_memo_server.py`: neuer Trust-Guard `_is_trusted()` auf allen GET/POST-Endpoints — der `Host`-Header muss Loopback sein (Schutz gegen **DNS-Rebinding**, das sonst `/api/load` = alle Patientendaten auslesbar gemacht hätte) und Cross-Origin-/Cross-Site-POSTs werden mit 403 abgewiesen (**CSRF**-Schutz). Per Unit- und Integrationstest verifiziert.
+- **OpenAI-/Demo-Pfad komplett entfernt** (Server, `app.js`, `index.html`, `styles.css` inkl. Demo-Banner). App ist cloud-frei — Strukturierung nur noch über Ollama lokal. `import ssl`/TLS-Kontext entfielen mit.
+- Release **v1.0.2** auf GitHub veröffentlicht. Einspielen vor Ort via „Praxis Memo Update.bat".
+
+**Neue/aktualisierte Docs (in `docs/`):**
+- `bitlocker-datenschutz.pdf` (+ `.html`): Seite 1–2 = einfache Info + Entscheidungsbox für Miriam (DSGVO, will sie Verschlüsselung?), Seite 3–4 = technische BitLocker-Checkliste für CMG.
+- `bitlocker-check.bat`: Doppelklick-Statusskript (zeigt Windows-Edition + BitLocker-Status, ändert nichts).
+- `bitlocker-checkliste.md`: Markdown-Variante der Checkliste.
+- `installation-guide` + `update-anleitung` (HTML + PDF): **AnyDesk-Passagen entfernt** (kein Fernzugriff installiert; Wartung vor Ort) und Sicherheits-Status auf „Übergangsbetrieb mit echten Daten" korrigiert.
+
+**Entscheidungen:**
+- **Kein AnyDesk** auf Miriams PC → CMG macht Updates/Wartung **vor Ort**.
+- GitHub-Repo bleibt **public** (keine Daten/Secrets im Repo, Sicherheit hängt nicht an Geheimhaltung; spart Token im Update-Flow). **2FA** auf dem Account aktiviert.
+
+**Noch offen (nach Priorität):**
+1. **BitLocker** auf Miriams NUC aktivieren (vor Ort) — Recovery-Key extern sichern.
+2. **Off-Site-Backup** (externe, verschlüsselte Platte) — sonst Totalverlust-Risiko + §630f-Aufbewahrungsverstoß.
+3. **DSB-/KV-Klärung** (MDR Art. 5(5), DSGVO).
+4. **prod-spec Phase 1**: §630f append-only Änderungslog + Verschlüsselung at-rest *in* der App.
 
 ---
 

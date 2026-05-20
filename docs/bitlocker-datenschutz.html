@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Praxis Memo — Datenschutz & BitLocker</title>
+<style>
+  @page { size: A4; margin: 16mm 16mm 16mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; color: #1a1a1a; line-height: 1.45; font-size: 13pt; margin: 0; padding: 0; }
+  h1 { font-size: 26pt; margin: 0 0 1mm 0; letter-spacing: -0.5pt; }
+  .sub { font-size: 12pt; color: #666; margin: 0 0 8mm 0; }
+  h2 { font-size: 16pt; margin: 7mm 0 3mm 0; padding: 3mm 5mm; background: #1a73e8; color: #fff; border-radius: 3mm; page-break-after: avoid; }
+  h2.green { background: #1e8e3e; }
+  h2.orange { background: #ea8600; }
+  h2.red { background: #c5221f; }
+  p { margin: 0 0 3mm 0; }
+  ul.plain { margin: 0 0 3mm 0; padding-left: 6mm; }
+  ul.plain li { margin: 0 0 1.5mm 0; }
+  ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; }
+  ol.steps li { counter-increment: s; position: relative; padding: 3mm 0 3mm 16mm; margin: 0; min-height: 14mm; }
+  ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 2mm; width: 11mm; height: 11mm; border-radius: 50%; background: #1a73e8; color: #fff; font-weight: 700; font-size: 16pt; display: flex; align-items: center; justify-content: center; }
+  h2.green + ol.steps li::before { background: #1e8e3e; }
+  h2.orange + ol.steps li::before { background: #ea8600; }
+  h2.red + ol.steps li::before { background: #c5221f; }
+  ol.steps li b { font-size: 14pt; }
+  ol.steps li .hint { display: block; font-size: 11pt; color: #555; margin-top: 1mm; }
+  .callout { background: #fff8e1; border-left: 4mm solid #f9ab00; padding: 4mm 5mm; margin: 4mm 0; border-radius: 0 2mm 2mm 0; font-size: 12pt; }
+  .callout b { color: #b06000; }
+  .help { background: #fce8e6; border-radius: 3mm; padding: 4mm 5mm; margin-top: 3mm; font-size: 12pt; }
+  .help b { color: #c5221f; }
+  .decision { border: 2px solid #1e8e3e; border-radius: 3mm; padding: 5mm 6mm; margin: 5mm 0; background: #f4faf5; }
+  .decision .q { font-size: 14pt; font-weight: 700; margin-bottom: 4mm; }
+  .opt { font-size: 14pt; margin: 2mm 0; }
+  .box { display: inline-block; width: 6mm; height: 6mm; border: 1.5pt solid #333; border-radius: 1mm; margin-right: 3mm; vertical-align: -1mm; }
+  .sign { margin-top: 7mm; font-size: 12pt; color: #333; }
+  .sign .line { display: inline-block; border-bottom: 1pt solid #333; min-width: 55mm; margin: 0 3mm; }
+  footer { margin-top: 8mm; padding-top: 3mm; border-top: 1px solid #ddd; font-size: 10pt; color: #888; text-align: center; }
+  .page-break { page-break-before: always; }
+  .for-cmg-note { font-size: 10.5pt; color: #777; margin: 1mm 0 6mm 0; }
+</style>
+</head>
+<body>
+
+<!-- ====================== TEIL 1: FÜR MIRIAM ====================== -->
+<h1>Datenschutz für Praxis Memo</h1>
+<p class="sub">Kurz erklärt — und eine Entscheidung für Dich.</p>
+
+<h2 class="green">Worum geht es?</h2>
+<p>Praxis Memo speichert Deine Notizen <b>direkt auf dem Praxis-PC</b> — nichts geht ins Internet, keine Cloud, keine USA. Das ist gut so.</p>
+<p>Eine Sache fehlt aber noch: Die Daten liegen auf der Festplatte <b>unverschlüsselt</b>. Würde der PC gestohlen oder die Festplatte ausgebaut, könnte jemand die Patientendaten einfach lesen.</p>
+
+<h2 class="orange">Warum das wichtig ist</h2>
+<p>Als Praxis bist Du für den Schutz der Patientendaten verantwortlich (<b>DSGVO</b>). Die <b>Verschlüsselung der Festplatte</b> ist dafür der anerkannte Standard — und für den Fall von Diebstahl oder Verlust die wichtigste einzelne Absicherung.</p>
+
+<h2 class="green">Die Lösung: BitLocker</h2>
+<p>BitLocker ist die Festplatten-Verschlüsselung, die <b>schon in Windows eingebaut</b> ist. Kostenlos.</p>
+<ul class="plain">
+  <li><b>Im Alltag merkst Du nichts:</b> PC anschalten, anmelden — alles läuft wie immer.</li>
+  <li><b>Der Schutz greift nur,</b> wenn jemand physisch an die Festplatte will — dann ist alles unlesbar.</li>
+  <li><b>Einrichten übernimmt CMG</b> für Dich, dauert nur ein paar Minuten.</li>
+</ul>
+
+<div class="callout">
+  <b>Deine einzige Aufgabe:</b> Beim Einrichten entsteht ein „Wiederherstellungsschlüssel". CMG bewahrt eine Kopie sicher auf und legt eine zweite in Deinen Praxis-Safe. Wichtig nur: <b>nicht wegwerfen</b> — ohne ihn wären die Daten bei einem Hardware-Defekt verloren.
+</div>
+
+<h2 class="green">Deine Entscheidung</h2>
+<div class="decision">
+  <div class="q">Möchtest Du, dass wir die Festplatten-Verschlüsselung aktivieren? <span style="font-weight:400;color:#1e8e3e;">(Empfehlung: ja)</span></div>
+  <div class="opt"><span class="box"></span> Ja, bitte einrichten</div>
+  <div class="opt"><span class="box"></span> Nein / erst noch besprechen</div>
+  <div class="sign">
+    Datum <span class="line"></span> &nbsp;&nbsp; Unterschrift <span class="line"></span>
+  </div>
+</div>
+
+<div class="help">
+  <b>Fragen?</b> Einfach bei CMG melden — wir gehen das in Ruhe zusammen durch.
+</div>
+
+<footer>Praxis Memo · Datenschutz-Info · Mai 2026</footer>
+
+<!-- ====================== TEIL 2: FÜR CMG ====================== -->
+<div class="page-break"></div>
+<h1>BitLocker einrichten</h1>
+<p class="sub">Technische Checkliste — für CMG, vor Ort.</p>
+<p class="for-cmg-note">Ziel: Festplatte verschlüsseln, damit Patientendaten bei Diebstahl/Ausbau unlesbar sind. Begleit-Skript: <b>bitlocker-check.bat</b> (zeigt Windows-Edition + BitLocker-Status, ändert nichts).</p>
+
+<div class="callout">
+  <b>Der Wiederherstellungsschlüssel ist heilig.</b> Geht er verloren und es passiert etwas (Hardware-Tausch, BIOS-Update, defektes TPM), sind die Daten <b>für immer weg</b>. Immer außerhalb des PCs sichern (Schritt 4).
+</div>
+
+<h2 class="green">1 · Status prüfen (~1 Min)</h2>
+<ol class="steps">
+  <li><b>bitlocker-check.bat</b> auf ihrem PC doppelklicken → UAC mit „Ja" bestätigen.</li>
+  <li>Ablesen &amp; notieren:
+    <span class="hint">Windows-Edition (Pro/Enterprise/Education oder Home)? · BitLocker C: „Protection On" oder „Off"? · TPM vorhanden?</span></li>
+</ol>
+
+<h2 class="orange">2 · Entscheidung nach Edition</h2>
+<ol class="steps">
+  <li><b>Pro / Enterprise / Education</b> → BitLocker verfügbar → weiter mit Schritt 3.</li>
+  <li><b>Home</b> → kein klassisches BitLocker. Alternativen:
+    <span class="hint">a) „Geräteverschlüsselung" (Einstellungen → Datenschutz &amp; Sicherheit → Geräteverschlüsselung) — falls vorhanden, einschalten. b) Sonst VeraCrypt-Container für den <b>data</b>-Ordner — dann eigene Anleitung von CMG bauen lassen.</span></li>
+</ol>
+
+<h2 class="green">3 · BitLocker einschalten (Pro/Enterprise/Education)</h2>
+<ol class="steps">
+  <li>Start → <b>„BitLocker verwalten"</b> öffnen.</li>
+  <li>Bei <b>Laufwerk C:</b> auf <b>„BitLocker aktivieren"</b> klicken.</li>
+  <li><b>Wiederherstellungsschlüssel sichern:</b> „In Datei speichern" UND ausdrucken/abfotografieren — nicht nur auf demselben PC!</li>
+  <li><b>„Gesamtes Laufwerk verschlüsseln"</b> wählen, dann <b>„Neuer Verschlüsselungsmodus"</b>, dann starten.
+    <span class="hint">Verschlüsselung läuft im Hintergrund weiter, PC bleibt benutzbar.</span></li>
+</ol>
+
+<h2 class="red">4 · Recovery-Key sicher ablegen (KRITISCH)</h2>
+<ol class="steps">
+  <li>Schlüssel an <b>mindestens 2 Orten außerhalb des PCs</b>: z.B. Passwortmanager <b>und</b> Ausdruck im Praxis-Safe.</li>
+  <li>Notieren, <b>wo</b> der Schlüssel liegt — damit er im Notfall auffindbar ist.</li>
+</ol>
+
+<h2 class="green">5 · Gegenkontrolle</h2>
+<ol class="steps">
+  <li><b>bitlocker-check.bat</b> nochmal laufen lassen → erwartet <b>„Protection On"</b>.
+    <span class="hint">„Encryption in Progress" statt „Fully Encrypted" ist okay — Schutz ist trotzdem aktiv.</span></li>
+</ol>
+
+<div class="help">
+  <b>Damit erledigt:</b> Verschlüsselung at-rest (DSGVO Art. 32) für den Diebstahl-/Verlust-Fall. Danach noch offen: §630f Änderungslog, Verschlüsselung innerhalb der App — siehe <b>prod-spec.md</b>. (Voll-Compliance ggf. mit DSB klären.)
+</div>
+
+<footer>Praxis Memo · BitLocker-Checkliste · Mai 2026</footer>
+
+</body>
+</html>
