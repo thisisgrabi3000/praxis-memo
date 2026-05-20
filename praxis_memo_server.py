@@ -28,6 +28,10 @@ MAX_BACKUPS_PER_DAY = 30
 KEEP_DAILY_DAYS = 90
 MAX_AUDIO_BYTES = 50 * 1024 * 1024  # 50 MB hard cap
 
+# Only these front-end files are served statically. Patient data, logs, backups
+# and VCS metadata under the app root must never be reachable via the browser.
+STATIC_ALLOWLIST = {"index.html", "app.js", "styles.css"}
+
 WHISPER_MODEL_NAME = "base"
 OLLAMA_BASE = "http://127.0.0.1:11434"
 OLLAMA_MODEL = "qwen2.5:3b"
@@ -154,7 +158,10 @@ def _structure_messages(transcript: str) -> list:
         f"Nachnotiz:\n{transcript}\n\n"
         "WICHTIG: Antworte AUSSCHLIESSLICH auf Deutsch. Verwende KEINE chinesischen, "
         "japanischen, koreanischen oder andere fremdsprachigen Schriftzeichen — nur deutsche "
-        "Buchstaben, Umlaute und Standard-Satzzeichen.\n\n"
+        "Buchstaben, Umlaute und Standard-Satzzeichen.\n"
+        "WICHTIG: Erfinde oder verändere KEINE Patienten-Kürzel oder -Nummern (z.B. P-001). "
+        "Übernimm ein Kürzel nur, wenn es wörtlich in der Nachnotiz steht; ansonsten erwähne "
+        "gar keines.\n\n"
         "Antworte ausschließlich mit einem JSON-Objekt (kein Text davor oder danach):\n"
         "{\n"
         '  "core": "Kernpunkte und wichtigste Themen dieser Sitzung in 2-3 Sätzen",\n'
@@ -285,7 +292,9 @@ def prune_backups() -> None:
             except OSError:
                 pass
 
-    # Remove day folders older than KEEP_DAILY_DAYS that are empty
+    # Retention: delete backups in day folders older than KEEP_DAILY_DAYS, then
+    # remove the now-empty folder. Deleting the files first is essential — rmdir
+    # alone never removes a non-empty folder, so old backups would linger forever.
     for day_dir in BACKUP_DIR.iterdir():
         if not day_dir.is_dir():
             continue
@@ -294,8 +303,13 @@ def prune_backups() -> None:
         except ValueError:
             continue
         if (today - folder_date).days > KEEP_DAILY_DAYS:
+            for old_file in day_dir.glob("*.json"):
+                try:
+                    old_file.unlink()
+                except OSError:
+                    pass
             try:
-                day_dir.rmdir()  # only removes if empty
+                day_dir.rmdir()  # only removes if now empty
             except OSError:
                 pass
 
@@ -408,20 +422,10 @@ class PraxisMemoHandler(BaseHTTPRequestHandler):
             return
 
         path = urllib.parse.urlparse(self.path).path
-        try:
-            payload = payload_from_request(self)
-        except json.JSONDecodeError:
-            self.send_json(400, {"ok": False, "error": "Invalid JSON"})
-            return
 
-        if path == "/api/save":
-            if not isinstance(payload.get("patients"), list):
-                self.send_json(400, {"ok": False, "error": "Missing patients"})
-                return
-            save_payload(payload)
-            self.send_json(200, {"ok": True})
-            return
-
+        # Audio endpoint: the body is raw audio bytes, not JSON. It MUST be handled
+        # before payload_from_request() runs — that helper reads and JSON-parses the
+        # whole body, which would reject audio with 400 and consume the bytes.
         if path == "/api/transcribe":
             length = int(self.headers.get("Content-Length", "0") or 0)
             if length <= 0:
@@ -438,6 +442,21 @@ class PraxisMemoHandler(BaseHTTPRequestHandler):
             except Exception as exc:
                 logger.exception("Transkription fehlgeschlagen")
                 self.send_json(503, {"ok": False, "error": str(exc)})
+            return
+
+        # JSON endpoints from here on.
+        try:
+            payload = payload_from_request(self)
+        except json.JSONDecodeError:
+            self.send_json(400, {"ok": False, "error": "Invalid JSON"})
+            return
+
+        if path == "/api/save":
+            if not isinstance(payload.get("patients"), list):
+                self.send_json(400, {"ok": False, "error": "Missing patients"})
+                return
+            save_payload(payload)
+            self.send_json(200, {"ok": True})
             return
 
         if path == "/api/structure":
@@ -469,6 +488,14 @@ class PraxisMemoHandler(BaseHTTPRequestHandler):
         relative = request_path.lstrip("/") or "index.html"
         if relative.endswith("/"):
             relative += "index.html"
+
+        # Strict allowlist: serve only the app's own front-end files. Everything
+        # else (data/*.json, server.log, .git/config, backups, …) stays private,
+        # even though it lives under the app root. This is the primary defense;
+        # the path-traversal check below is a second line.
+        if relative not in STATIC_ALLOWLIST:
+            self.send_error(403)
+            return
 
         target = (APP_DIR / relative).resolve()
         app_root = APP_DIR.resolve()

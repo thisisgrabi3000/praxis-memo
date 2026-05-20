@@ -27,26 +27,25 @@ function createEmptyPatient(uid, id) {
 }
 
 function createSession({ id, date, time, status = "Geprüft", focus, agreement, open, watch, transcript, summary, prep }) {
-  const safeFocus = focus || "Fokus ergänzen";
-  const safeAgreement = agreement || "Vereinbarung ergänzen.";
-  const safeOpen = open || "Offene Punkte ergänzen.";
+  // Keine klinischen Inhalte fabrizieren: leere Felder bleiben leer. Platzhalter
+  // oder erfundene Transkripte wären medizinisch/rechtlich nicht vertretbar.
   return {
     id,
     date,
     time: time || "08:00",
     status,
-    focus: safeFocus,
-    transcript: transcript || `Nachnotiz: Fokus war ${safeFocus}. Vereinbart: ${safeAgreement}`,
+    focus: focus || "",
+    transcript: transcript || "",
     summary: {
-      core: summary?.core || `Schwerpunkt: ${safeFocus}.`,
-      agreement: summary?.agreement || safeAgreement,
-      open: summary?.open || safeOpen,
-      watch: summary?.watch || watch || "Beim nächsten Termin fachlich prüfen."
+      core: summary?.core || "",
+      agreement: summary?.agreement || agreement || "",
+      open: summary?.open || open || "",
+      watch: summary?.watch || watch || ""
     },
     prep: {
-      anchor: prep?.anchor || safeAgreement,
-      opening: prep?.opening || `Anknüpfen an: ${safeFocus}.`,
-      caution: prep?.caution || "Fachliche Bewertung bleibt manuell."
+      anchor: prep?.anchor || "",
+      opening: prep?.opening || "",
+      caution: prep?.caution || ""
     }
   };
 }
@@ -81,7 +80,7 @@ function normalizePatient(raw) {
 }
 
 function normalizeSession(s) {
-  return createSession({
+  const session = createSession({
     id: s.id || `session-${Date.now()}`,
     date: s.date || todayIso(),
     time: s.time || "08:00",
@@ -91,6 +90,10 @@ function normalizeSession(s) {
     summary: s.summary,
     prep: s.prep
   });
+  // Append-only Revisionshistorie erhalten (createSession kennt diese Felder nicht).
+  if (Array.isArray(s.revisions) && s.revisions.length) session.revisions = s.revisions;
+  if (s.revisedAt) session.revisedAt = s.revisedAt;
+  return session;
 }
 
 // ============================================================
@@ -585,6 +588,7 @@ function renderSessionHistory(patient) {
         <span class="session-date">${escapeHtml(formatDateShort(session.date))}</span>
         <strong>${escapeHtml(clip(session.focus, 58))}</strong>
         <span class="mini-status">${escapeHtml(session.status)}</span>
+        ${session.revisions?.length ? `<span class="mini-status">${session.revisions.length} frühere Version${session.revisions.length === 1 ? "" : "en"}</span>` : ""}
       </summary>
       <div class="session-fields">
         <label class="field">
@@ -762,6 +766,19 @@ function archiveCurrentSession(patient) {
   const archived = buildSessionFromCurrent(patient);
   const idx = (patient.sessions || []).findIndex((s) => s.id === archived.id);
   if (idx >= 0) {
+    const previous = patient.sessions[idx];
+    // Append-only: eine bereits geprüfte Version wird nicht verworfen, sondern als
+    // unveränderbare Revision aufbewahrt (rechtlicher Nachweis früherer Stände).
+    if (previous.status === "Geprüft") {
+      const snapshot = clone(previous);
+      const olderRevisions = Array.isArray(snapshot.revisions) ? snapshot.revisions : [];
+      delete snapshot.revisions;
+      snapshot.revisedAt = previous.revisedAt || `${previous.date || ""} ${previous.time || ""}`.trim();
+      archived.revisions = [snapshot, ...olderRevisions];
+    } else if (Array.isArray(previous.revisions)) {
+      archived.revisions = previous.revisions;
+    }
+    archived.revisedAt = new Date().toISOString();
     patient.sessions[idx] = archived;
   } else {
     patient.sessions = [archived, ...(patient.sessions || [])];
@@ -889,6 +906,27 @@ function renderKiStatus() {
   }
 }
 
+// Baut die Eingabe für die KI: Transkript plus bereits in Felder eingetragene
+// Notizen, damit nachträglich diktierte/getippte Ergänzungen nicht verloren gehen.
+function buildStructureInput(patient) {
+  let input = patient.transcript?.trim() || "";
+  const fields = [
+    ["Beobachtungsfokus", patient.focus],
+    ["Kernpunkte", patient.summary?.core],
+    ["Vereinbarungen", patient.summary?.agreement],
+    ["Offene Punkte", patient.summary?.open],
+    ["Beobachtung für nächsten Termin", patient.summary?.watch]
+  ];
+  const notes = fields
+    .map(([label, val]) => [label, (val || "").trim()])
+    .filter(([, val]) => val)
+    .map(([label, val]) => `- ${label}: ${val}`);
+  if (notes.length) {
+    input += "\n\nBereits in Felder eingetragene Notizen (in die Strukturierung einbeziehen, nicht verwerfen):\n" + notes.join("\n");
+  }
+  return input;
+}
+
 async function structureTranscript() {
   const patient = getPatient();
   if (!patient) return;
@@ -921,7 +959,9 @@ async function structureTranscript() {
     const r = await fetch("/api/structure", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript })
+      // Bereits in Felder eingetragene Notizen mitgeben, damit Nachträge nach der
+      // ersten Strukturierung nicht verloren gehen.
+      body: JSON.stringify({ transcript: buildStructureInput(patient) })
     });
     const data = await r.json();
     if (!r.ok || !data.ok) throw new Error(data.error || "Fehler");
@@ -930,10 +970,37 @@ async function structureTranscript() {
     const target = patients.find((p) => p.uid === lockedUid);
     if (!target) throw new Error("Patient nicht mehr vorhanden");
 
-    if (parsed.core) target.summary.core = parsed.core;
-    if (parsed.agreement) { target.summary.agreement = parsed.agreement; target.agreement = parsed.agreement; }
-    if (parsed.open) { target.summary.open = parsed.open; target.open = parsed.open; }
-    if (parsed.watch) target.summary.watch = parsed.watch;
+    // Vor dem Überschreiben prüfen: welche Felder haben bereits Inhalt, der durch
+    // abweichenden KI-Text ersetzt würde?
+    const ops = [
+      { key: "core", label: "Kernpunkte", cur: target.summary.core },
+      { key: "agreement", label: "Vereinbarungen", cur: target.summary.agreement },
+      { key: "open", label: "Offene Punkte", cur: target.summary.open },
+      { key: "watch", label: "Beobachtungsfokus", cur: target.summary.watch }
+    ];
+    const overwriteLabels = ops
+      .filter((op) => parsed[op.key] && (op.cur || "").trim() && parsed[op.key].trim() !== (op.cur || "").trim())
+      .map((op) => op.label);
+
+    let allowOverwrite = true;
+    if (overwriteLabels.length) {
+      if (selectedUid === lockedUid) {
+        allowOverwrite = window.confirm(
+          "Folgende Felder enthalten bereits Notizen und würden durch die neue KI-Strukturierung ersetzt:\n\n" +
+          overwriteLabels.map((l) => `• ${l}`).join("\n") +
+          "\n\nVorhandene Notizen wurden der KI als Kontext mitgegeben. Trotzdem ersetzen?"
+        );
+      } else {
+        // Patient nicht sichtbar → nicht stillschweigend überschreiben.
+        allowOverwrite = false;
+      }
+    }
+    const canWrite = (cur) => allowOverwrite || !(cur || "").trim();
+
+    if (parsed.core && canWrite(target.summary.core)) target.summary.core = parsed.core;
+    if (parsed.agreement && canWrite(target.summary.agreement)) { target.summary.agreement = parsed.agreement; target.agreement = parsed.agreement; }
+    if (parsed.open && canWrite(target.summary.open)) { target.summary.open = parsed.open; target.open = parsed.open; }
+    if (parsed.watch && canWrite(target.summary.watch)) target.summary.watch = parsed.watch;
 
     target.prep.anchor = target.summary.agreement;
     target.prep.opening = target.focus ? `Anknüpfen an: ${clip(target.focus, 120)}` : "";
@@ -1015,6 +1082,11 @@ async function startDictationForField(target, options = {}) {
 }
 
 async function startMediaRecordingForField(target, options = {}) {
+  // Patient zum Aufnahme-START festhalten. Wird der Patient während der Aufnahme
+  // gewechselt (Klick-Handler setzt selectedUid, bevor er stopDictation aufruft),
+  // muss das Audio trotzdem beim ursprünglichen Patienten landen.
+  const recordingPatientUid = getPatient()?.uid || null;
+
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1042,7 +1114,7 @@ async function startMediaRecordingForField(target, options = {}) {
     stream.getTracks().forEach((t) => t.stop());
     const blob = new Blob(audioChunks, { type: mediaRecorder?.mimeType || "audio/webm" });
     audioChunks = [];
-    await sendAudioForTranscription(blob, target, options);
+    await sendAudioForTranscription(blob, target, options, recordingPatientUid);
   };
 
   mediaRecorder.start(250);
@@ -1060,7 +1132,7 @@ async function startMediaRecordingForField(target, options = {}) {
   showToast(options.startMessage || "Diktat läuft — zum Beenden nochmal klicken.");
 }
 
-async function sendAudioForTranscription(blob, target, options) {
+async function sendAudioForTranscription(blob, target, options, lockedPatientUid) {
   // Schutz vor leeren / sehr kurzen Aufnahmen (< 0.5 s ergibt meist Müll)
   if (blob.size < 4000) {
     showToast("Aufnahme zu kurz. Bitte länger sprechen.");
@@ -1071,8 +1143,9 @@ async function sendAudioForTranscription(blob, target, options) {
     return;
   }
 
-  // Patient-UID merken — falls währenddessen der Patient wechselt, schreiben wir trotzdem korrekt
-  const lockedPatientUid = getPatient()?.uid || null;
+  // lockedPatientUid stammt aus dem Aufnahme-START (startMediaRecordingForField),
+  // nicht aus dem Stop-Zeitpunkt — sonst würde ein Patientenwechsel das Audio
+  // dem falschen Patienten zuordnen.
 
   if (options.useGlobalStatus) {
     processingStatus.textContent = "Transkription läuft…";

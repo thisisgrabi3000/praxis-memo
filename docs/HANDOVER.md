@@ -7,6 +7,19 @@ Kontext: Lokale Web-App für eine Psychotherapeutin (Miriam), entwickelt auf mac
 
 ## 0. Änderungsprotokoll
 
+### 2026-05-20 — Workflow-Härtetest-Fixes (Release v1.0.3)
+
+Behebung von 8 im Härtetest gefundenen Befunden:
+
+1. **`/api/transcribe` repariert** — `do_POST` parste jeden POST-Body zuerst als JSON; Audio-Bytes scheiterten mit „400 Invalid JSON“, Whisper wurde nie erreicht. Der Transcribe-Zweig läuft jetzt **vor** dem JSON-Parsing.
+2. **Patienten-Lock ab Aufnahmestart** — die Patienten-UID wird jetzt in `startMediaRecordingForField()` festgehalten (vorher erst beim Stop). Ein Patientenwechsel während laufender Aufnahme ordnet das Audio nicht mehr dem falschen Patienten zu.
+3. **Re-Strukturierung ohne Datenverlust** — bereits in Felder eingetragene Notizen gehen jetzt als Kontext mit an die KI (`buildStructureInput`), und vor dem Überschreiben nicht-leerer Felder erscheint eine Bestätigung.
+4. **Static-Allowlist** — der Server liefert nur noch `index.html`, `app.js`, `styles.css` aus (`STATIC_ALLOWLIST`). `data/*.json`, `server.log`, `.git/` etc. sind nicht mehr per Browser abrufbar.
+5. **KI-Prompt** verbietet das Erfinden/Ändern von Patienten-Kürzeln; fehlerhafte „P-007“-Demo-Daten korrigiert.
+6. **Append-only Sitzungsverlauf** — beim erneuten Archivieren einer bereits geprüften Sitzung bleibt die Vorversion als unveränderbare Revision erhalten (`session.revisions`, `revisedAt`). `createSession()` fabriziert keine Platzhalter/künstlichen Transkripte mehr.
+7. **Backup-Pruning** löscht jetzt auch Backup-Dateien in Ordnern älter als 90 Tage (vorher nur leere Ordner).
+8. **Doku** an aktuellen Code angeglichen (siehe unten — Auto-Switch/busyOperation gestrichen, SpeechRecognition/OpenAI korrigiert).
+
 ### 2026-05-20 — Security-Härtung + Doku-Bereinigung (Release v1.0.2)
 
 > **Status-Wechsel:** Die App wird jetzt mit **echten Patientendaten** betrieben (nicht mehr nur Demo). Damit greifen DSGVO Art. 9/32 und §630f BGB ab sofort.
@@ -30,7 +43,7 @@ Kontext: Lokale Web-App für eine Psychotherapeutin (Miriam), entwickelt auf mac
 1. **BitLocker** auf Miriams NUC aktivieren (vor Ort) — Recovery-Key extern sichern.
 2. **Off-Site-Backup** (externe, verschlüsselte Platte) — sonst Totalverlust-Risiko + §630f-Aufbewahrungsverstoß.
 3. **DSB-/KV-Klärung** (MDR Art. 5(5), DSGVO).
-4. **prod-spec Phase 1**: §630f append-only Änderungslog + Verschlüsselung at-rest *in* der App.
+4. **prod-spec Phase 1**: Verschlüsselung at-rest *in* der App. (§630f append-only ist für den Sitzungsverlauf umgesetzt — geprüfte Versionen bleiben als `revisions` erhalten; ein durchgängiges Änderungslog über alle Feldänderungen steht noch aus.)
 
 ---
 
@@ -100,9 +113,13 @@ Alle Daten bleiben auf dem PC. Kein Text, kein Audio verlässt das Gerät. Miria
   focus: string,
   transcript: string,
   summary: { core, agreement, open, watch },
-  prep: { anchor, opening, caution }
+  prep: { anchor, opening, caution },
+  revisedAt?: string,    // ISO-Zeitstempel der letzten Überarbeitung (nur wenn überarbeitet)
+  revisions?: Session[]  // Append-only: frühere geprüfte Versionen, neueste zuerst
 }
 ```
+
+**Append-only:** Wird eine bereits geprüfte Sitzung erneut archiviert (Bearbeitung + „Geprüft speichern“), ersetzt `archiveCurrentSession()` die alte Version nicht, sondern legt sie als Snapshot in `revisions` ab. Frühere Stände bleiben so nachweisbar (§630f). Die UI zeigt die Zahl früherer Versionen im Verlauf an.
 
 ### Backup-Format (JSON)
 ```json
@@ -150,8 +167,9 @@ Ollama (separater lokaler Dienst auf 127.0.0.1:11434)
 ### Speicher-Hierarchie beim Start
 1. `renderAll()` mit localStorage-Daten (sofort sichtbar)
 2. `hydrateFromServer()` lädt Server-Daten → überschreibt localStorage wenn Server-Daten vorhanden
-3. `checkAutoSwitchOnStart()` — schaltet auf anstehenden Patienten
-4. `checkKiAvailability()` + `checkWhisperAvailability()` — Status-Checks
+3. `checkKiAvailability()` + `checkWhisperAvailability()` — Status-Checks
+
+> Hinweis: Es gibt **keinen** automatischen Patientenwechsel. Die Therapeutin wählt Patienten manuell in der Liste. (Ein früher dokumentierter „Auto-Switch“ ist im aktuellen Code nicht implementiert.)
 
 ---
 
@@ -169,7 +187,7 @@ Ollama (separater lokaler Dienst auf 127.0.0.1:11434)
 - Audio > 50 MB → 413 vom Server
 - Audio < 4 KB (zu kurz) → Toast, kein POST
 - Temp-Datei wird beim Server-Start ge-`unlink`-t und nach jeder Transkription
-- Bei Patientenwechsel während laufender Transkription: Text wird trotzdem im richtigen Patienten gespeichert (`lockedPatientUid`)
+- Bei Patientenwechsel während laufender Aufnahme/Transkription: Die Patienten-UID wird beim **Aufnahmestart** in `startMediaRecordingForField()` festgehalten und an `sendAudioForTranscription()` durchgereicht. Der Text landet dadurch immer beim ursprünglichen Patienten (`lockedPatientUid`)
 
 **Whisper-Modell:** `base` (~150 MB). `small` war zu langsam auf Praxis-Hardware. `base` reicht für Deutsch in ruhiger Umgebung.
 
@@ -187,6 +205,8 @@ Ollama (separater lokaler Dienst auf 127.0.0.1:11434)
 Browser → POST /api/structure { transcript } → Python → POST 11434/api/chat → JSON zurück
 ```
 
+`transcript` enthält das eigentliche Diktat **plus** bereits in Felder eingetragene Notizen (`buildStructureInput()`), damit Nachträge nach der ersten Strukturierung nicht verloren gehen. Der Prompt verbietet zusätzlich das Erfinden/Ändern von Patienten-Kürzeln.
+
 **Ollama-Aufruf-Parameter:**
 - `model: "qwen2.5:3b"` (war qwen2.5:7b — zu langsam auf NUC, ~120s pro Memo)
 - `format: "json"` — erzwingt strict JSON von Ollama
@@ -196,8 +216,10 @@ Browser → POST /api/structure { transcript } → Python → POST 11434/api/cha
 
 **JSON-Extraktion:** `content.find("{") ... content.rfind("}")` als Sicherheitsnetz.
 
-**Schutz vor Datenkorruption bei Auto-Switch:**  
-Während laufender Strukturierung wird `busyOperation = true` gesetzt → `checkAutoSwitch` blockiert. Die Strukturierung merkt sich den `lockedUid` und schreibt das Ergebnis in den ursprünglichen Patienten, auch wenn die Auswahl wechselt. Tab-Wechsel auf "Prüfen" passiert nur, wenn der Patient noch ausgewählt ist.
+**Schutz bei Patientenwechsel:**  
+Die Strukturierung merkt sich den `lockedUid` (zum Start des Requests) und schreibt das Ergebnis in den ursprünglichen Patienten, auch wenn die Auswahl während des Requests wechselt. Tab-Wechsel auf „Prüfen“ passiert nur, wenn der Patient noch ausgewählt ist. Ist er nicht mehr ausgewählt, werden bereits gefüllte Felder **nicht** stillschweigend überschrieben (nur leere Felder werden ergänzt); beim aktiven Patienten fragt vor dem Überschreiben nicht-leerer Felder ein Bestätigungsdialog.
+
+> Es gibt kein `busyOperation`-Flag und keinen `checkAutoSwitch` mehr — diese waren in einer früheren Doku-Version beschrieben, sind im Code aber nicht (mehr) vorhanden.
 
 **Wo im Code:**
 - Browser: `structureTranscript()`, `checkKiAvailability()`
@@ -208,15 +230,15 @@ Während laufender Strukturierung wird `busyOperation = true` gesetzt → `check
 ## 5. Workflow der Ärztin
 
 ```
-Termin steht bevor (5 Min vorher)
-  → App wechselt automatisch zu Patient + Tab "Anknüpfen"
-  → Miriam sieht Vorbereitung aus letzter Sitzung
+Vor dem Termin
+  → Miriam wählt den Patienten in der Liste, Tab "Anknüpfen"
+  → sie sieht Vorbereitung aus letzter Sitzung
 
 Sitzung findet statt
 
-Nach der Sitzung (bis 90 Min danach)
-  → App wechselt automatisch zu Patient + Tab "Einsprechen"
-  → Miriam klickt Mikrofon-Button, spricht Nachnotiz
+Nach der Sitzung
+  → Miriam wählt den Patienten, Tab "Einsprechen"
+  → klickt Mikrofon-Button, spricht Nachnotiz
   → Klickt nochmal → "Wird verarbeitet…" (10–20 Sek)
   → Text erscheint im Transkript-Feld
   → Klickt "Strukturieren" → KI verteilt auf 4 Felder
@@ -225,17 +247,9 @@ Nach der Sitzung (bis 90 Min danach)
   → Nächsten Termin in "Datum & Uhrzeit" eintragen → fertig
 ```
 
-**Auto-Switch-Logik** (`checkAutoSwitchOnStart` + `checkAutoSwitch`):
-- Beim Start: Fenster −90 bis +30 Minuten um jeden Tages-Termin
-- Minütlicher Check: Fenster −5 Min (→ Prep-Tab) bis −0 Min / +90 Min (→ Record-Tab)
-- Wechselt nur wenn `selectedUid !== patient.uid` (kein Loop)
+**Patientenwechsel ist manuell.** Es gibt keinen zeit-/terminbasierten automatischen Wechsel. Die Patientenliste ist nach `nextDate`/`nextTime` sortiert, sodass anstehende Termine oben stehen; die Auswahl trifft die Therapeutin selbst per Klick.
 
-**Auto-Switch-Schutz** (`autoSwitchBlocked()`):
-- Während Aufnahme (`isRecording`)
-- Während Transkription oder KI-Strukturierung (`busyOperation`)
-- 30 Sek. nach letzter Tastatur-/Maus-Eingabe (`lastUserInputAt`)
-
-So unterbricht die App keine laufende Bearbeitung, auch wenn ein Termin ansteht.
+> Eine frühere Doku-Version beschrieb hier einen automatischen Wechsel (`checkAutoSwitch`, `autoSwitchBlocked`, Zeitfenster). Diese Mechanismen existieren im aktuellen `app.js` nicht.
 
 ---
 
@@ -258,7 +272,7 @@ So unterbricht die App keine laufende Bearbeitung, auch wenn ein Termin ansteht.
 | Browser-Download | Bei jedem Backup-Klick zusätzlich | Downloads-Ordner, `praxismemo-backup-*.json` |
 | Restore | Button → Datei wählen | Überschreibt aktive Daten nach Bestätigung |
 
-**Pruning:** max. 30 Backups/Tag, ältere Tages-Ordner nach 90 Tagen.  
+**Pruning:** max. 30 Backups/Tag; Backups älter als 90 Tage werden gelöscht (erst die JSON-Dateien, dann der nun leere Tages-Ordner).  
 **Atomares Schreiben:** `write_json_atomic()` — schreibt in `.tmp`, dann `os.replace()`.
 
 ---

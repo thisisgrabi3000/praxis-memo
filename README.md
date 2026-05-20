@@ -4,15 +4,13 @@ Browser-Demo mit fiktiven, praxisnahen Patientenkürzeln. Die Vorschau ist nur z
 
 ## Lokal starten
 
+Die App benötigt ihren lokalen Server (für Diktat und KI-Strukturierung):
+
 ```bash
-python3 -m http.server 3000
+python3 praxis_memo_server.py
 ```
 
-Dann im Browser öffnen:
-
-```text
-http://localhost:3000/
-```
+Der Server bindet `127.0.0.1:3000` und öffnet den Browser automatisch. `python3 -m http.server` liefert nur die statische Oberfläche **ohne** Diktat/KI und ist nicht ausreichend.
 
 ## Als WhatsApp-Link teilen
 
@@ -28,14 +26,14 @@ Wichtig: In diese Online-Demo gehören ausschließlich fiktive Daten. Keine echt
 
 ## Diktierfunktion
 
-Die Demo nutzt die Browser-Schnittstelle `SpeechRecognition`, wenn sie verfügbar ist. Das funktioniert typischerweise in Chrome oder Edge und benötigt HTTPS sowie eine Mikrofonfreigabe.
+Die Diktierfunktion läuft vollständig lokal: Der Browser nimmt das Audio per `MediaRecorder` auf und schickt es an den lokalen Server (`/api/transcribe`), der es mit [faster-whisper](https://github.com/SYSTRAN/faster-whisper) auf dem Gerät transkribiert. Es wird **keine** Browser-`SpeechRecognition`/Web-Speech-API und **kein** Cloud-Dienst verwendet — kein Audio verlässt den PC.
 
 Es gibt zwei Diktierwege:
 
 - globales Diktat im Schritt „Einsprechen“ für das Transkript
 - kleine Mikrofonbuttons direkt an jedem editierbaren Feld, um fehlende Inhalte gezielt nachzudiktieren
 
-Für echte Patientendaten ist diese Browser-Diktierfunktion nicht geeignet, weil Browser-Anbieter die Erkennung je nach Umsetzung nicht garantiert lokal verarbeiten. Die spätere Praxisversion sollte lokale Transkription auf dem Praxis-PC verwenden.
+Voraussetzung ist, dass `faster-whisper` installiert ist (über `KI einrichten.bat`). Ohne Installation zeigt die App eine klare Meldung, ein Cloud-Fallback existiert bewusst nicht.
 
 ## Speicherung in der Demo
 
