@@ -1,5 +1,5 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal
 title Praxis Memo - Besseres KI-Modell installieren
 cd /d "%~dp0"
 
@@ -11,6 +11,13 @@ echo.
 
 REM RAM ermitteln (Gesamt-GB, gerundet)
 for /f "usebackq delims=" %%R in (`powershell -NoProfile -Command "[math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB)"`) do set RAMGB=%%R
+if not defined RAMGB (
+    echo ABBRUCH: Arbeitsspeicher konnte nicht ermittelt werden ^(PowerShell blockiert?^).
+    echo Es wurde nichts geaendert.
+    echo.
+    pause
+    exit /b 1
+)
 echo Erkannter Arbeitsspeicher: %RAMGB% GB
 echo.
 
