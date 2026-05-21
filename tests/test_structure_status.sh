@@ -2,9 +2,10 @@
 set -euo pipefail
 TDIR=$(mktemp -d /tmp/pms-status-test.XXXXXX)
 cp praxis_memo_server.py app.js index.html styles.css "$TDIR"/
-PORT=3066
+PORT=$(python3 -c "import socket; s=socket.socket(); s.bind(('127.0.0.1',0)); print(s.getsockname()[1]); s.close()")
 ( cd "$TDIR" && python3 praxis_memo_server.py --port $PORT --no-browser >/dev/null 2>&1 & echo $! > "$TDIR/pid" )
 sleep 1
+kill -0 "$(cat "$TDIR/pid")" 2>/dev/null || { echo "FAIL: Test-Server startete nicht"; exit 1; }
 B="http://127.0.0.1:$PORT"
 for i in $(seq 1 20); do curl -s -o /dev/null "$B/api/structure-status" && break; sleep 0.3; done
 
