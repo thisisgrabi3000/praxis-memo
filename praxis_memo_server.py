@@ -454,7 +454,7 @@ class PraxisMemoHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/structure-status":
-            self.send_json(200, {"available": ollama_available(), "mode": "local"})
+            self.send_json(200, {"available": ollama_available(), "mode": "local", "model": active_model()})
             return
 
         self.serve_static(path)
