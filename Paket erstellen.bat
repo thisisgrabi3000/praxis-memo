@@ -12,7 +12,7 @@ set ZIPNAME=PraxisMemo-%date:~6,4%-%date:~3,2%-%date:~0,2%.zip
 
 REM Mit PowerShell packen (Windows 10+ eingebaut)
 powershell -NoProfile -Command ^
-  "Compress-Archive -Force -Path 'index.html','styles.css','app.js','praxis_memo_server.py','Start Praxis Memo.bat','KI einrichten.bat','Datenordner oeffnen.bat','PC KI Leistung pruefen.bat','README_PC_INSTALLATION.txt' -DestinationPath '%ZIPNAME%'"
+  "Compress-Archive -Force -Path 'index.html','styles.css','app.js','praxis_memo_server.py','Start Praxis Memo.bat','KI einrichten.bat','Datenordner oeffnen.bat','PC KI Leistung pruefen.bat','Besseres Modell installieren.bat','Schnelles Modell (3b) zurueck.bat','README_PC_INSTALLATION.txt' -DestinationPath '%ZIPNAME%'"
 
 if %errorlevel%==0 (
     echo Fertig: %ZIPNAME%
