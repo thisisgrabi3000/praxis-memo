@@ -340,6 +340,7 @@ const kiStatus = document.querySelector("#kiStatus");
 const lengthWarning = document.querySelector("#lengthWarning");
 const toast = document.querySelector("#toast");
 let kiMode = "local"; // immer lokal (Ollama, on-device)
+let kiModel = "";
 const fieldDictationTargets = document.querySelectorAll("[data-field], [data-summary], [data-prep]");
 
 // ============================================================
@@ -1071,6 +1072,7 @@ async function checkKiAvailability() {
       const data = await r.json();
       kiAvailable = Boolean(data.available);
       kiMode = data.mode || "local";
+      kiModel = data.model || "";
     } else {
       kiAvailable = false;
     }
@@ -1087,7 +1089,7 @@ function renderKiStatus() {
   if (!kiAvailable) {
     kiStatus.textContent = "KI nicht aktiv — 'KI einrichten.bat' ausführen oder Felder manuell füllen";
   } else {
-    kiStatus.textContent = "KI bereit (lokal)";
+    kiStatus.textContent = kiModel ? `KI bereit (lokal, ${kiModel})` : "KI bereit (lokal)";
   }
 }
 
