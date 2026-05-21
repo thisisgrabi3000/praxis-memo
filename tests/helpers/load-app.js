@@ -1,7 +1,11 @@
 const fs = require("fs");
+const path = require("path");
 const vm = require("vm");
 
-// Lädt app.js in einen vm-Context; alle Top-Level-Funktionen liegen danach auf dem Rückgabe-Objekt.
+// Lädt app.js in einen vm-Context; alle Top-Level-Funktionen liegen danach als Properties
+// auf dem Rückgabe-Objekt (app.js definiert keine module.exports — runInNewContext belässt
+// Top-Level-`function`-Deklarationen auf dem context). Wird app.js je in eine IIFE/Module
+// gewickelt, müssen die Tests angepasst werden.
 function loadApp() {
   class StubElement {
     constructor() {
@@ -35,7 +39,8 @@ function loadApp() {
   context.window.document = documentStub;
   context.window.localStorage = context.localStorage;
   context.globalThis = context;
-  vm.runInNewContext(fs.readFileSync("app.js", "utf8"), context, { filename: "app.js" });
+  const appPath = path.join(__dirname, "..", "..", "app.js");
+  vm.runInNewContext(fs.readFileSync(appPath, "utf8"), context, { filename: "app.js" });
   return context;
 }
 
