@@ -1,6 +1,6 @@
-# PraxisMemo Vorschau
+# Praxis Memo
 
-Browser-Demo mit fiktiven, praxisnahen Patientenkürzeln. Die Vorschau ist nur zur Erklärung des Workflows gedacht und darf nicht mit echten Patientendaten genutzt werden.
+Lokale Browser-App als Gedächtnis- und Vorbereitungsassistent für psychiatrische oder psychotherapeutische Sitzungsnotizen. Der Fokus liegt auf Verlauf, offenen Fragen, Vereinbarungen, Risiken, Schutzfaktoren und sensiblen Themen pro Patient. Die App diagnostiziert nicht und ersetzt keine fachliche Prüfung.
 
 ## Lokal starten
 
@@ -11,18 +11,6 @@ python3 praxis_memo_server.py
 ```
 
 Der Server bindet `127.0.0.1:3000` und öffnet den Browser automatisch. `python3 -m http.server` liefert nur die statische Oberfläche **ohne** Diktat/KI und ist nicht ausreichend.
-
-## Als WhatsApp-Link teilen
-
-Die Demo ist eine statische Seite. Für Strato müssen diese Dateien in einen Webordner hochgeladen werden:
-
-- `index.html`
-- `styles.css`
-- `app.js`
-
-Danach kann der HTTPS-Link per WhatsApp geteilt werden.
-
-Wichtig: In diese Online-Demo gehören ausschließlich fiktive Daten. Keine echten Patientendaten, keine echten Audioaufnahmen, keine Cloud-KI.
 
 ## Diktierfunktion
 
@@ -35,9 +23,9 @@ Es gibt zwei Diktierwege:
 
 Voraussetzung ist, dass `faster-whisper` installiert ist (über `KI einrichten.bat`). Ohne Installation zeigt die App eine klare Meldung, ein Cloud-Fallback existiert bewusst nicht.
 
-## Speicherung in der Demo
+## Speicherung
 
-Alle Änderungen werden nur im jeweiligen Browser per `localStorage` gespeichert. Andere Besucher sehen ihre eigene lokale Demo-Version. Über „Demo zurücksetzen“ werden die lokalen Demodaten wiederhergestellt.
+Die App speichert im Browser als schnellen Cache und über den lokalen Python-Server in `data/praxismemo-data.json`. Automatische und manuelle Backups liegen unter `backups/`. Tests sollten weiterhin mit fiktiven oder anonymisierten Daten erfolgen, bis Verschlüsselung, Backup-Konzept und Datenschutzprüfung abgeschlossen sind.
 
 ## Sitzungsarchiv
 
@@ -50,39 +38,11 @@ Der Ablauf ist jetzt pro Patient als Verlauf gedacht:
 5. Mit „Neue Sitzung“ beginnt ein neuer Entwurf, ohne alte Einträge zu überschreiben.
 
 Archivierte Sitzungen bleiben pro Patient als Timeline erhalten und können in der Vorbereitungsansicht aufgeklappt und editiert werden.
+Zusätzlich pflegt die App beim Prüfen ein Längsschnittregister für Risiken/Warnhinweise, Schutzfaktoren, offene Fragen, Vereinbarungen und sensible Themen. Diese Registereinträge werden vor Folgeterminen prominent angezeigt und der KI bei späteren Strukturierungen als Kontext mitgegeben.
 
-## Kalender aktualisieren
+## Offene Punkte vor Produktivbetrieb
 
-Die Demo zeigt den geplanten lokalen Abgleich mit einem führenden Kalender/Praxissystem:
-
-- Button „Kalender aktualisieren“ übernimmt Terminänderungen in die Tagesliste.
-- Der Zeitpunkt der letzten manuellen Aktualisierung bleibt sichtbar.
-- Terminstatus und Notizstatus sind getrennt: `Abgesagt` oder `Verschoben` verändert nicht den Patientenverlauf.
-- In der Demo werden fiktive Kalenderänderungen simuliert. In der Praxisversion müsste hier lokal eine Kalenderdatei, ein lokaler Kalender oder das Praxissystem angebunden werden.
-
-## Spätere Praxisversion
-
-Empfohlene Zielarchitektur:
-
-```text
-Browser-Oberfläche
-  -> lokaler Dienst auf dem Windows-PC
-  -> lokale Transkription
-  -> lokale Zusammenfassung
-  -> verschlüsselte lokale Datenbank
-```
-
-Die Psychologin braucht dann voraussichtlich:
-
-- Windows-11-PC, idealerweise Windows 11 Pro
-- installierte lokale App
-- Edge oder Chrome
-- BitLocker oder vergleichbare Geräteverschlüsselung
-- verschlüsseltes Backup
-
-Geplante Abos:
-
-- kein KI-Abo
-- kein Cloud-Hosting für Patientendaten
-- Microsoft 365 nur optional, falls die Praxis es ohnehin nutzt
-- Wartung und Datenschutzprüfung separat einplanen
+- verschlüsselte lokale Ablage zusätzlich zu BitLocker/FileVault
+- belastbares externes Backup-Konzept
+- fachliche und datenschutzrechtliche Prüfung
+- reale Tests auf dem Praxis-PC mit installiertem Ollama und Whisper

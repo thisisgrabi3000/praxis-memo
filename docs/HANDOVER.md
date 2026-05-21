@@ -7,6 +7,17 @@ Kontext: Lokale Web-App für eine Psychotherapeutin (Miriam), entwickelt auf mac
 
 ## 0. Änderungsprotokoll
 
+### 2026-05-20 — Gedächtnisregister + ID-Härtung (Release v1.0.4)
+
+Neue Härtung für psychiatrische/psychotherapeutische Längsschnittnutzung:
+
+1. **Kollisionsfreie IDs** — neue Patienten-, Sitzungs- und Register-IDs laufen über `makeId()` mit `crypto.randomUUID()` und Fallback. Schnelle Folgesitzungen können dadurch nicht mehr per `Date.now()` kollidieren.
+2. **Patienten-Gedächtnisregister** — `patient.memory` führt Risiken/Warnhinweise, Schutzfaktoren, offene Fragen, Vereinbarungen und sensible Themen mit Quellen-Sitzung und Datum.
+3. **Vorbereitungsansicht erweitert** — `renderContextPanel()` zeigt neben letzter Sitzung auch die Registereinträge prominent an.
+4. **KI-Kontext erweitert** — `buildStructureInput()` gibt dauerhafte Patientennotizen und Top-Level-Felder an Ollama weiter, damit offene Risiken/Vereinbarungen nicht bei späteren Strukturierungen verschwinden.
+5. **KI-Validierung** — fehlende Pflichtfelder, nicht belegte Patientenkürzel und nicht im Transkript belegte klinische Diagnosebegriffe werden vor Übernahme blockiert.
+6. **Prompt-Kontext angepasst** — Server-Prompt spricht jetzt ausdrücklich von psychiatrischer oder psychotherapeutischer Praxis und verbietet Diagnose-/Therapieentscheidungen.
+
 ### 2026-05-20 — Workflow-Härtetest-Fixes (Release v1.0.3)
 
 Behebung von 8 im Härtetest gefundenen Befunden:
@@ -56,7 +67,7 @@ Eine lokale Browser-App zur Sitzungsdokumentation. Die Ärztin spricht nach jede
 - `index.html` + `styles.css` + `app.js` — reines Vanilla-JS, kein Framework, kein Build-Step
 - `praxis_memo_server.py` — Python-Standardbibliothek HTTP-Server (`ThreadingHTTPServer`), läuft lokal auf `127.0.0.1:3000`
 - Start über `Start Praxis Memo.bat` (Windows), öffnet Browser automatisch
-- KI lokal via [Ollama](https://ollama.com) (`qwen2.5:7b`) + [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (`small`)
+- KI lokal via [Ollama](https://ollama.com) (`qwen2.5:3b`) + [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (`base`)
 - Einrichtung via `KI einrichten.bat` (Ein-Klick)
 
 **Datenpfade:**
@@ -96,6 +107,13 @@ Alle Daten bleiben auf dem PC. Kein Text, kein Audio verlässt das Gerät. Miria
     opening: string,     // Einstiegsfrage
     caution: string      // Vorsicht/fachlich prüfen
   },
+  memory: {
+    risks: MemoryItem[],
+    protectiveFactors: MemoryItem[],
+    openQuestions: MemoryItem[],
+    agreements: MemoryItem[],
+    sensitiveTopics: MemoryItem[]
+  },
   currentSessionId: string,
   sessions: Session[]    // archivierte Sitzungen
 }
@@ -120,6 +138,21 @@ Alle Daten bleiben auf dem PC. Kein Text, kein Audio verlässt das Gerät. Miria
 ```
 
 **Append-only:** Wird eine bereits geprüfte Sitzung erneut archiviert (Bearbeitung + „Geprüft speichern“), ersetzt `archiveCurrentSession()` die alte Version nicht, sondern legt sie als Snapshot in `revisions` ab. Frühere Stände bleiben so nachweisbar (§630f). Die UI zeigt die Zahl früherer Versionen im Verlauf an.
+
+### MemoryItem (patientenbezogenes Register)
+```js
+{
+  id: string,
+  text: string,
+  status: "offen" | "erledigt" | string,
+  sourceSessionId: string,
+  sourceDate: string,
+  createdAt: string,
+  lastSeenAt: string
+}
+```
+
+**Zweck:** Diese Register sind die eigentliche Längsschnitt-Gedächtnisschicht. Sie entstehen beim Archivieren geprüfter Sitzungen aus `summary.agreement`, `summary.open` und `summary.watch`, bleiben pro Patient erhalten und werden in der Vorbereitungsansicht sowie im nächsten KI-Prompt wiederverwendet. Das ersetzt keine fachliche Prüfung, verhindert aber, dass Risiken, Schutzfaktoren, offene Fragen oder sensible Themen nur in alten Transkripten verborgen bleiben.
 
 ### Backup-Format (JSON)
 ```json
@@ -205,7 +238,7 @@ Ollama (separater lokaler Dienst auf 127.0.0.1:11434)
 Browser → POST /api/structure { transcript } → Python → POST 11434/api/chat → JSON zurück
 ```
 
-`transcript` enthält das eigentliche Diktat **plus** bereits in Felder eingetragene Notizen (`buildStructureInput()`), damit Nachträge nach der ersten Strukturierung nicht verloren gehen. Der Prompt verbietet zusätzlich das Erfinden/Ändern von Patienten-Kürzeln.
+`transcript` enthält das eigentliche Diktat **plus** bereits in Felder eingetragene Notizen und dauerhafte Registereinträge (`buildStructureInput()`), damit Nachträge, Risiken, sensible Themen und offene Fragen nach der ersten Strukturierung nicht verloren gehen. Der Prompt verbietet zusätzlich das Erfinden/Ändern von Patienten-Kürzeln, Diagnosen und Therapieentscheidungen.
 
 **Ollama-Aufruf-Parameter:**
 - `model: "qwen2.5:3b"` (war qwen2.5:7b — zu langsam auf NUC, ~120s pro Memo)
@@ -214,7 +247,7 @@ Browser → POST /api/structure { transcript } → Python → POST 11434/api/cha
 - `stream: false`
 - System-Prompt: Rolle als medizinisches Dokumentationssystem
 
-**JSON-Extraktion:** `content.find("{") ... content.rfind("}")` als Sicherheitsnetz.
+**JSON-Extraktion:** `content.find("{") ... content.rfind("}")` als Sicherheitsnetz. Danach prüft das Frontend Pflichtfelder, neu erfundene Patientenkürzel und nicht im Quelltext belegte klinische Diagnosebegriffe, bevor Felder überschrieben werden.
 
 **Schutz bei Patientenwechsel:**  
 Die Strukturierung merkt sich den `lockedUid` (zum Start des Requests) und schreibt das Ergebnis in den ursprünglichen Patienten, auch wenn die Auswahl während des Requests wechselt. Tab-Wechsel auf „Prüfen“ passiert nur, wenn der Patient noch ausgewählt ist. Ist er nicht mehr ausgewählt, werden bereits gefüllte Felder **nicht** stillschweigend überschrieben (nur leere Felder werden ergänzt); beim aktiven Patienten fragt vor dem Überschreiben nicht-leerer Felder ein Bestätigungsdialog.

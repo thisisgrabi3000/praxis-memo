@@ -152,8 +152,8 @@ def _strip_cjk(text: str) -> str:
 
 def _structure_messages(transcript: str) -> list:
     user_prompt = (
-        "Du bist ein Dokumentationssystem für eine psychotherapeutische Praxis. "
-        "Analysiere die folgende Sitzungs-Nachnotiz einer Therapeutin und verteile den Inhalt "
+        "Du bist ein Dokumentationssystem für eine psychiatrische oder psychotherapeutische Praxis. "
+        "Analysiere die folgende Sitzungs-Nachnotiz einer behandelnden Person und verteile den Inhalt "
         "präzise auf vier Felder.\n\n"
         f"Nachnotiz:\n{transcript}\n\n"
         "WICHTIG: Antworte AUSSCHLIESSLICH auf Deutsch. Verwende KEINE chinesischen, "
@@ -161,7 +161,11 @@ def _structure_messages(transcript: str) -> list:
         "Buchstaben, Umlaute und Standard-Satzzeichen.\n"
         "WICHTIG: Erfinde oder verändere KEINE Patienten-Kürzel oder -Nummern (z.B. P-001). "
         "Übernimm ein Kürzel nur, wenn es wörtlich in der Nachnotiz steht; ansonsten erwähne "
-        "gar keines.\n\n"
+        "gar keines.\n"
+        "WICHTIG: Stelle KEINE Diagnosen und triff KEINE Therapieentscheidungen. Halte klar "
+        "auseinander, was der Patient berichtet, was als offene Frage/Hypothese formuliert ist, "
+        "was vereinbart wurde und welche Risiken/Schutzfaktoren beobachtet werden sollen. "
+        "Unsicherheit muss als Unsicherheit erhalten bleiben.\n\n"
         "Antworte ausschließlich mit einem JSON-Objekt (kein Text davor oder danach):\n"
         "{\n"
         '  "core": "Kernpunkte und wichtigste Themen dieser Sitzung in 2-3 Sätzen",\n'
@@ -172,7 +176,7 @@ def _structure_messages(transcript: str) -> list:
     )
     return [
         {"role": "system", "content": (
-            "Du bist ein präzises medizinisches Dokumentationssystem für eine deutschsprachige Praxis. "
+            "Du bist ein präzises medizinisches Dokumentationssystem für eine deutschsprachige psychiatrische oder psychotherapeutische Praxis. "
             "Antworte ausschließlich auf Deutsch und ausschließlich mit dem geforderten JSON-Objekt, "
             "ohne weitere Erklärungen. Verwende niemals chinesische, japanische, koreanische oder "
             "andere fremdsprachige Schriftzeichen."

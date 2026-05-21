@@ -8,9 +8,38 @@ const SERVER_SAVE_DELAY = 650;
 // DATA FACTORIES
 // ============================================================
 
-function createEmptyPatient(uid, id) {
+function makeId(prefix) {
+  const uuid = window.crypto?.randomUUID?.();
+  const suffix = uuid || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}-${suffix}`;
+}
+
+function createMemoryState(raw = {}) {
   return {
-    uid,
+    risks: Array.isArray(raw.risks) ? raw.risks.map(normalizeMemoryItem) : [],
+    protectiveFactors: Array.isArray(raw.protectiveFactors) ? raw.protectiveFactors.map(normalizeMemoryItem) : [],
+    openQuestions: Array.isArray(raw.openQuestions) ? raw.openQuestions.map(normalizeMemoryItem) : [],
+    agreements: Array.isArray(raw.agreements) ? raw.agreements.map(normalizeMemoryItem) : [],
+    sensitiveTopics: Array.isArray(raw.sensitiveTopics) ? raw.sensitiveTopics.map(normalizeMemoryItem) : []
+  };
+}
+
+function normalizeMemoryItem(raw) {
+  return {
+    id: raw.id || makeId("mem"),
+    text: raw.text || "",
+    status: raw.status || "offen",
+    sourceSessionId: raw.sourceSessionId || "",
+    sourceDate: raw.sourceDate || "",
+    createdAt: raw.createdAt || new Date().toISOString(),
+    lastSeenAt: raw.lastSeenAt || raw.createdAt || new Date().toISOString()
+  };
+}
+
+function createEmptyPatient(uid, id) {
+  const safeUid = uid || makeId("p");
+  return {
+    uid: safeUid,
     id,
     status: "Offen",
     nextDate: "",
@@ -21,7 +50,8 @@ function createEmptyPatient(uid, id) {
     transcript: "",
     summary: { core: "", agreement: "", open: "", watch: "" },
     prep: { anchor: "", opening: "", caution: "" },
-    currentSessionId: `${uid}-current`,
+    memory: createMemoryState(),
+    currentSessionId: makeId("session"),
     sessions: []
   };
 }
@@ -51,7 +81,7 @@ function createSession({ id, date, time, status = "Geprüft", focus, agreement, 
 }
 
 function normalizePatient(raw) {
-  const uid = raw.uid || `p-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const uid = raw.uid || makeId("p");
   return {
     uid,
     id: raw.id || "P-?",
@@ -74,14 +104,15 @@ function normalizePatient(raw) {
       opening: raw.prep?.opening || "",
       caution: raw.prep?.caution || "Fachlich prüfen, bevor Inhalte übernommen werden."
     },
-    currentSessionId: raw.currentSessionId || `${uid}-current`,
+    memory: createMemoryState(raw.memory || {}),
+    currentSessionId: raw.currentSessionId || makeId("session"),
     sessions: Array.isArray(raw.sessions) ? raw.sessions.map(normalizeSession) : []
   };
 }
 
 function normalizeSession(s) {
   const session = createSession({
-    id: s.id || `session-${Date.now()}`,
+    id: s.id || makeId("session"),
     date: s.date || todayIso(),
     time: s.time || "08:00",
     status: s.status || "Geprüft",
@@ -622,8 +653,10 @@ function renderContextPanel(patient) {
     contextPrepBrief.innerHTML = latest
       ? `<p><strong>Anknüpfen</strong>${escapeHtml(latest.summary.agreement)}</p>
          <p><strong>Offen</strong>${escapeHtml(latest.summary.open)}</p>
-         <p><strong>Letzter Fokus</strong>${escapeHtml(latest.focus)}</p>`
-      : `<p><strong>Noch kein Verlauf</strong>Nach dem ersten geprüften Eintrag entsteht hier die Vorbereitung.</p>`;
+         <p><strong>Letzter Fokus</strong>${escapeHtml(latest.focus)}</p>
+         ${renderMemoryBlock(patient)}`
+      : `<p><strong>Noch kein Verlauf</strong>Nach dem ersten geprüften Eintrag entsteht hier die Vorbereitung.</p>
+         ${renderMemoryBlock(patient)}`;
   }
 
   if (!contextHistory) return;
@@ -743,13 +776,133 @@ function updateSessionField(sessionId, fieldName, value) {
 }
 
 // ============================================================
+// LONGITUDINAL MEMORY
+// ============================================================
+
+const MEMORY_LABELS = {
+  risks: "Risiken / Warnhinweise",
+  protectiveFactors: "Schutzfaktoren",
+  openQuestions: "Offene Fragen",
+  agreements: "Vereinbarungen",
+  sensitiveTopics: "Sensible Themen"
+};
+
+function normalizeMemoryText(text) {
+  return String(text || "").trim().replace(/\s+/g, " ");
+}
+
+function splitMemoryText(text) {
+  const cleaned = normalizeMemoryText(text);
+  if (!cleaned) return [];
+  return cleaned
+    .split(/\s+\|\s+|;\s+|\n+/)
+    .map((part) => normalizeMemoryText(part))
+    .filter(Boolean);
+}
+
+function hasRiskSignal(text) {
+  return /suizid|todesgedanken|selbstverletz|fremdgefährd|krise|risiko|warnsignal|akut|alkohol|sucht/i.test(text || "");
+}
+
+function hasProtectiveSignal(text) {
+  return /schutz|ressource|schwester|bruder|freund|freundin|familie|kontakt|stabilisierend|krisenkarte|notfall/i.test(text || "");
+}
+
+function hasSensitiveSignal(text) {
+  return /missbrauch|trauma|gewalt|übergriff|sexuell|sucht|ptbs|vergewalt/i.test(text || "");
+}
+
+function upsertMemoryItem(patient, bucket, text, session) {
+  const value = normalizeMemoryText(text);
+  if (!value) return;
+  patient.memory = createMemoryState(patient.memory || {});
+  const list = patient.memory[bucket] || [];
+  const key = value.toLowerCase();
+  const existing = list.find((item) => normalizeMemoryText(item.text).toLowerCase() === key);
+  const now = new Date().toISOString();
+  if (existing) {
+    existing.lastSeenAt = now;
+    existing.sourceSessionId = session.id || existing.sourceSessionId;
+    existing.sourceDate = session.date || existing.sourceDate;
+    return;
+  }
+  list.unshift({
+    id: makeId("mem"),
+    text: value,
+    status: "offen",
+    sourceSessionId: session.id || "",
+    sourceDate: session.date || todayIso(),
+    createdAt: now,
+    lastSeenAt: now
+  });
+  patient.memory[bucket] = list.slice(0, 30);
+}
+
+function updatePatientMemoryFromSession(patient, session) {
+  if (!patient || !session) return;
+  const summary = session.summary || {};
+
+  splitMemoryText(summary.agreement).forEach((text) => upsertMemoryItem(patient, "agreements", text, session));
+  splitMemoryText(summary.open).forEach((text) => upsertMemoryItem(patient, "openQuestions", text, session));
+
+  splitMemoryText(summary.watch).forEach((text) => {
+    if (hasSensitiveSignal(text)) upsertMemoryItem(patient, "sensitiveTopics", text, session);
+    if (hasRiskSignal(text)) upsertMemoryItem(patient, "risks", text, session);
+    if (hasProtectiveSignal(text)) upsertMemoryItem(patient, "protectiveFactors", text, session);
+  });
+
+  const combined = `${summary.core || ""} ${summary.open || ""} ${summary.watch || ""}`;
+  if (hasSensitiveSignal(combined)) upsertMemoryItem(patient, "sensitiveTopics", summary.watch || summary.open || summary.core, session);
+  if (hasRiskSignal(combined)) upsertMemoryItem(patient, "risks", summary.watch || summary.open || summary.core, session);
+  if (hasProtectiveSignal(combined)) upsertMemoryItem(patient, "protectiveFactors", summary.watch || summary.core, session);
+}
+
+function memoryLines(patient, bucket, limit = 5) {
+  const list = patient?.memory?.[bucket] || [];
+  return list
+    .filter((item) => item.text && item.status !== "erledigt")
+    .slice(0, limit)
+    .map((item) => `- ${MEMORY_LABELS[bucket]} (${item.sourceDate || "Datum offen"}): ${item.text}`);
+}
+
+function buildMemoryContext(patient) {
+  if (!patient?.memory) return "";
+  const lines = [
+    ...memoryLines(patient, "risks", 5),
+    ...memoryLines(patient, "sensitiveTopics", 5),
+    ...memoryLines(patient, "protectiveFactors", 5),
+    ...memoryLines(patient, "openQuestions", 5),
+    ...memoryLines(patient, "agreements", 5)
+  ];
+  return lines.length
+    ? "\n\nDauerhafte Patientennotizen aus früheren Sitzungen (prüfen, fortführen, nicht ohne Anlass löschen):\n" + lines.join("\n")
+    : "";
+}
+
+function renderMemoryBlock(patient) {
+  if (!patient?.memory) return "";
+  const sections = ["risks", "sensitiveTopics", "protectiveFactors", "openQuestions", "agreements"]
+    .map((bucket) => {
+      const items = (patient.memory[bucket] || [])
+        .filter((item) => item.text && item.status !== "erledigt")
+        .slice(0, 4);
+      if (!items.length) return "";
+      return `<p><strong>${escapeHtml(MEMORY_LABELS[bucket])}</strong>${items
+        .map((item) => escapeHtml(`${item.text}${item.sourceDate ? ` (${formatDateShort(item.sourceDate)})` : ""}`))
+        .join("<br>")}</p>`;
+    })
+    .filter(Boolean);
+  return sections.join("");
+}
+
+// ============================================================
 // SESSION MANAGEMENT
 // ============================================================
 
 function buildSessionFromCurrent(patient) {
   const existing = (patient.sessions || []).find((s) => s.id === patient.currentSessionId);
   return createSession({
-    id: patient.currentSessionId || `session-${patient.uid}-${Date.now()}`,
+    id: patient.currentSessionId || makeId("session"),
     date: existing?.date || todayIso(),
     time: existing?.time || patient.nextTime || "08:00",
     status: "Geprüft",
@@ -783,6 +936,7 @@ function archiveCurrentSession(patient) {
   } else {
     patient.sessions = [archived, ...(patient.sessions || [])];
   }
+  updatePatientMemoryFromSession(patient, archived);
   patient.sessions = sortSessions(patient.sessions);
   patient.status = "Geprüft";
   patient.currentSessionId = archived.id;
@@ -814,7 +968,7 @@ function startNewSession() {
   if (hasDraft && !window.confirm("Aktueller Entwurf ist noch nicht geprüft. Trotzdem neue Sitzung beginnen?")) return;
 
   const latest = getLastCheckedSession(patient);
-  patient.currentSessionId = `session-${patient.uid}-${Date.now()}`;
+  patient.currentSessionId = makeId("session");
   patient.status = "Offen";
   patient.transcript = "";
   patient.summary = { core: "", agreement: latest?.summary?.agreement || "", open: latest?.summary?.open || "", watch: "" };
@@ -836,7 +990,7 @@ function addPatient() {
     .map((p) => parseInt(String(p.id || "").replace(/\D/g, ""), 10))
     .filter((n) => !Number.isNaN(n));
   const nextNum = (usedNumbers.length ? Math.max(...usedNumbers) : 0) + 1;
-  const uid = `p-${Date.now()}`;
+  const uid = makeId("p");
   const patient = createEmptyPatient(uid, `P-${String(nextNum).padStart(3, "0")}`);
   patients.push(patient);
   selectedUid = patient.uid;
@@ -906,12 +1060,55 @@ function renderKiStatus() {
   }
 }
 
+const STRUCTURE_REQUIRED_KEYS = ["core", "agreement", "open", "watch"];
+const CLINICAL_CLAIM_TERMS = [
+  "adhs",
+  "bipolar",
+  "borderline",
+  "depression",
+  "manie",
+  "ptbs",
+  "psychose",
+  "schizophren"
+];
+
+function textContainsTerm(text, term) {
+  return new RegExp(`\\b${term}\\w*`, "i").test(text || "");
+}
+
+function validateStructuredResult(parsed, sourceInput) {
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("KI-Antwort ist kein Objekt");
+  }
+  const missing = STRUCTURE_REQUIRED_KEYS.filter((key) => typeof parsed[key] !== "string");
+  if (missing.length) {
+    throw new Error(`KI-Antwort unvollständig: ${missing.join(", ")}`);
+  }
+
+  const outputText = STRUCTURE_REQUIRED_KEYS.map((key) => parsed[key] || "").join(" ");
+  const inventedIds = (outputText.match(/\bP-[A-Za-z0-9-]+\b/g) || [])
+    .filter((id) => !sourceInput.includes(id));
+  if (inventedIds.length) {
+    throw new Error(`KI-Antwort enthält nicht belegte Patientenkürzel: ${inventedIds.join(", ")}`);
+  }
+
+  const unsupportedTerms = CLINICAL_CLAIM_TERMS.filter(
+    (term) => textContainsTerm(outputText, term) && !textContainsTerm(sourceInput, term)
+  );
+  if (unsupportedTerms.length) {
+    throw new Error(`KI-Antwort enthält nicht belegte klinische Begriffe: ${unsupportedTerms.join(", ")}`);
+  }
+}
+
 // Baut die Eingabe für die KI: Transkript plus bereits in Felder eingetragene
 // Notizen, damit nachträglich diktierte/getippte Ergänzungen nicht verloren gehen.
 function buildStructureInput(patient) {
   let input = patient.transcript?.trim() || "";
+  input += buildMemoryContext(patient);
   const fields = [
     ["Beobachtungsfokus", patient.focus],
+    ["Letzte Vereinbarung", patient.agreement],
+    ["Top-Level offene Punkte", patient.open],
     ["Kernpunkte", patient.summary?.core],
     ["Vereinbarungen", patient.summary?.agreement],
     ["Offene Punkte", patient.summary?.open],
@@ -954,6 +1151,7 @@ async function structureTranscript() {
 
   structureButton.disabled = true;
   processingStatus.textContent = "KI strukturiert… (kann 30-90 s dauern)";
+  const structureInput = buildStructureInput(patient);
 
   try {
     const r = await fetch("/api/structure", {
@@ -961,12 +1159,13 @@ async function structureTranscript() {
       headers: { "Content-Type": "application/json" },
       // Bereits in Felder eingetragene Notizen mitgeben, damit Nachträge nach der
       // ersten Strukturierung nicht verloren gehen.
-      body: JSON.stringify({ transcript: buildStructureInput(patient) })
+      body: JSON.stringify({ transcript: structureInput })
     });
     const data = await r.json();
     if (!r.ok || !data.ok) throw new Error(data.error || "Fehler");
 
     const parsed = data.result || {};
+    validateStructuredResult(parsed, structureInput);
     const target = patients.find((p) => p.uid === lockedUid);
     if (!target) throw new Error("Patient nicht mehr vorhanden");
 
