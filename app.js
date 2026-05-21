@@ -419,6 +419,13 @@ function formatNextAppointment(patient) {
   return `Nächster Termin: ${formatDateLong(patient.nextDate)}, ${time}`;
 }
 
+function hasFutureFollowUp(patient) {
+  const nextDate = patient?.nextDate || "";
+  // nextDate ist YYYY-MM-DD → lexikografischer Vergleich = chronologisch.
+  // Heute zählt nicht als Zukunft: der Termin von heute ist gerade gelaufen.
+  return Boolean(nextDate) && nextDate > todayIso();
+}
+
 function formatSyncTime(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "gerade";
@@ -1365,6 +1372,19 @@ function archiveCurrentSession(patient) {
 function approveCurrent() {
   const patient = getPatient();
   if (!patient) return;
+  if (!hasFutureFollowUp(patient)) {
+    const proceed = window.confirm(
+      "Kein Folgetermin in der Zukunft eingetragen. Trotzdem freigeben und archivieren?\n\n" +
+      "OK = trotzdem fortfahren\n" +
+      "Abbrechen = Termin eintragen"
+    );
+    if (!proceed) {
+      setActiveStep("record");
+      const dateInput = document.querySelector('[data-field="nextDate"]');
+      if (dateInput) dateInput.focus();
+      return;
+    }
+  }
   archiveCurrentSession(patient);
   savePatients();
   activeStep = "prep";
