@@ -33,14 +33,19 @@ Die App speichert im Browser als schnellen Cache und über den lokalen Python-Se
 
 Der Ablauf ist jetzt pro Patient als Verlauf gedacht:
 
-1. Nach der Sitzung Nachnotiz diktieren oder eintippen.
-2. Automatisch strukturieren lassen.
-3. Inhalte fachlich prüfen und mit „Geprüft speichern“ archivieren.
-4. Vor dem nächsten Termin zeigt „Anknüpfen“ die letzte Vereinbarung, offene Punkte und den Verlauf.
-5. Mit „Neue Sitzung“ beginnt ein neuer Entwurf, ohne alte Einträge zu überschreiben.
+1. Patient links auswählen.
+2. Vor der Sitzung den Schnellblick oder den Tab „Anknüpfen“ lesen.
+3. Nach der Sitzung in „Einsprechen“ nur die neue Nachnotiz diktieren oder eintippen.
+4. Automatisch strukturieren lassen.
+5. Inhalte fachlich prüfen und mit „Geprüft speichern“ archivieren.
+6. Nächsten Termin eintragen, damit die linke Liste richtig sortiert.
+7. Mit „Neue Sitzung“ beginnt beim nächsten Kontakt ein neuer Entwurf, ohne alte Einträge zu überschreiben.
 
 Archivierte Sitzungen bleiben pro Patient als Timeline erhalten und können in der Vorbereitungsansicht aufgeklappt und editiert werden.
 Zusätzlich pflegt die App beim Prüfen ein Längsschnittregister für Risiken/Warnhinweise, Schutzfaktoren, offene Fragen, Vereinbarungen und sensible Themen. Diese Registereinträge werden vor Folgeterminen prominent angezeigt und der KI bei späteren Strukturierungen als Kontext mitgegeben.
+Über „Akte drucken“ öffnet die App für den ausgewählten Patienten eine lokale Druckansicht mit aktuellem Stand, Register, archivierten Sitzungen und früheren Versionen. Im Browser-Druckdialog kann diese Ansicht als PDF gespeichert werden.
+
+Der konkrete Bedienablauf für Miriam liegt zusätzlich in `docs/ablaufplan-miriam.md` und als druckbare Anleitung in `docs/anleitung-miriam.html`/`.pdf`.
 
 ## Offene Punkte vor Produktivbetrieb
 

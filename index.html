@@ -70,7 +70,7 @@
           <div class="hero-copy">
             <p class="eyebrow">Patient</p>
             <div class="compact-title">
-              <input id="patientIdInput" class="patient-id-input" type="text" aria-label="Patientenkürzel" placeholder="P-001" />
+              <input id="patientIdInput" class="patient-id-input" type="text" aria-label="Patientenkürzel" placeholder="Kürzel" />
               <button class="delete-patient-button" id="deletePatientButton" type="button" aria-label="Patient löschen" title="Patient löschen">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M4 7h16"></path>
@@ -85,6 +85,15 @@
             <p class="muted" id="patientMeta">Kein Patient ausgewählt</p>
           </div>
           <div class="top-actions">
+            <button class="quiet-action export-action" type="button" id="exportPatientButton" title="Patientenakte als Druckansicht öffnen">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"></path>
+                <path d="M14 3v6h6"></path>
+                <path d="M8 13h8"></path>
+                <path d="M8 17h5"></path>
+              </svg>
+              Akte drucken
+            </button>
             <button class="soft-action new-session-action" type="button" id="newSessionButton">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 5v14"></path>
@@ -121,6 +130,23 @@
             <strong>Anknüpfen</strong>
           </button>
         </nav>
+
+        <section class="quick-prep" id="quickPrep" aria-label="Schnellblick für die nächste Sitzung"></section>
+
+        <section class="empty-workspace" aria-label="Start ohne Patient">
+          <div>
+            <p class="eyebrow">Start</p>
+            <h3>Noch kein Patient ausgewählt</h3>
+            <p class="muted">Lege links den ersten Patienten an. Danach erscheint der Arbeitsablauf.</p>
+          </div>
+          <button class="soft-action" type="button" data-add-patient-empty>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5v14"></path>
+              <path d="M5 12h14"></path>
+            </svg>
+            Patient anlegen
+          </button>
+        </section>
 
         <section class="step-panel active" id="recordPanel" aria-label="Einsprechen">
           <div class="record-panel">
@@ -189,18 +215,21 @@
                   </label>
                 </div>
               </div>
-              <label class="field">
-                <span>Letzter Fokus</span>
-                <input type="text" data-field="focus" />
-              </label>
-              <label class="field important-field">
-                <span>Letzte Vereinbarung</span>
-                <textarea data-field="agreement" rows="4"></textarea>
-              </label>
-              <label class="field">
-                <span>Offen</span>
-                <textarea data-field="open" rows="4"></textarea>
-              </label>
+              <details class="optional-details">
+                <summary>Zusätzliche Notizen</summary>
+                <label class="field">
+                  <span>Letzter Fokus</span>
+                  <input type="text" data-field="focus" />
+                </label>
+                <label class="field important-field">
+                  <span>Letzte Vereinbarung</span>
+                  <textarea data-field="agreement" rows="4"></textarea>
+                </label>
+                <label class="field">
+                  <span>Offen</span>
+                  <textarea data-field="open" rows="4"></textarea>
+                </label>
+              </details>
             </article>
           </div>
         </section>
@@ -274,30 +303,6 @@
         </section>
       </main>
 
-      <aside class="context-panel" aria-label="Kurzkontext">
-        <div class="context-heading">
-          <p class="eyebrow">Patientenverlauf</p>
-          <div class="context-heading-row">
-            <h2>Archiv</h2>
-            <span class="status-badge" id="contextSessionCount">0 Einträge</span>
-          </div>
-        </div>
-
-        <article class="context-block priority-context">
-          <p class="eyebrow">Nächste Sitzung</p>
-          <div class="prep-brief" id="contextPrepBrief"></div>
-        </article>
-
-        <article class="context-block">
-          <p class="eyebrow">Letzte Sitzungen</p>
-          <div class="compact-history" id="contextHistory"></div>
-        </article>
-
-        <article class="context-block privacy-context">
-          <p class="eyebrow">Datenschutz</p>
-          <p>Alle Daten bleiben lokal auf diesem PC. Kein Text wird ins Internet gesendet.</p>
-        </article>
-      </aside>
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

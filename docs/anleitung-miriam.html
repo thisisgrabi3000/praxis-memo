@@ -2,69 +2,105 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>Praxis Memo — Anleitung</title>
+<title>Praxis Memo — Ablauf für Miriam</title>
 <style>
-  @page { size: A4; margin: 16mm 16mm 16mm 16mm; }
+  @page { size: A4; margin: 14mm; }
   * { box-sizing: border-box; }
-  html, body { font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; color: #1a1a1a; line-height: 1.45; font-size: 13pt; margin: 0; padding: 0; }
-  h1 { font-size: 26pt; margin: 0 0 1mm 0; letter-spacing: -0.5pt; }
-  .sub { font-size: 12pt; color: #666; margin: 0 0 8mm 0; }
-  h2 { font-size: 16pt; margin: 7mm 0 3mm 0; padding: 3mm 5mm; background: #1a73e8; color: #fff; border-radius: 3mm; page-break-after: avoid; }
-  h2.green { background: #1e8e3e; }
-  h2.orange { background: #ea8600; }
-  h2.red { background: #c5221f; }
-  ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; }
-  ol.steps li { counter-increment: s; position: relative; padding: 3mm 0 3mm 16mm; margin: 0; min-height: 14mm; }
-  ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 2mm; width: 11mm; height: 11mm; border-radius: 50%; background: #1a73e8; color: #fff; font-weight: 700; font-size: 16pt; display: flex; align-items: center; justify-content: center; }
-  h2.green + ol.steps li::before { background: #1e8e3e; }
-  h2.orange + ol.steps li::before { background: #ea8600; }
-  ol.steps li b { font-size: 14pt; }
-  ol.steps li .hint { display: block; font-size: 11pt; color: #555; margin-top: 1mm; }
-  .callout { background: #fff8e1; border-left: 4mm solid #f9ab00; padding: 4mm 5mm; margin: 4mm 0; border-radius: 0 2mm 2mm 0; font-size: 12pt; }
-  .callout b { color: #b06000; }
-  .help { background: #fce8e6; border-radius: 3mm; padding: 4mm 5mm; margin-top: 3mm; font-size: 12pt; }
-  .help b { color: #c5221f; }
-  footer { margin-top: 8mm; padding-top: 3mm; border-top: 1px solid #ddd; font-size: 10pt; color: #888; text-align: center; }
+  html, body { font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; color: #17222d; line-height: 1.42; font-size: 11pt; margin: 0; padding: 0; }
+  h1 { font-size: 24pt; margin: 0 0 1mm 0; }
+  .sub { color: #687582; margin: 0 0 6mm 0; }
+  h2 { font-size: 14pt; margin: 6mm 0 2.5mm; padding: 2.5mm 4mm; background: #16324a; color: white; border-radius: 2mm; page-break-after: avoid; }
+  h3 { font-size: 12pt; margin: 4mm 0 1.5mm; color: #16324a; page-break-after: avoid; }
+  p { margin: 0 0 2mm; }
+  ol, ul { margin: 0 0 2mm 5mm; padding: 0; }
+  li { margin-bottom: 1.1mm; }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 10pt; }
+  th, td { border-bottom: 0.4pt solid #cbd8e2; padding: 1.8mm 2mm; text-align: left; vertical-align: top; }
+  th { background: #f1f5f8; color: #16324a; }
+  .callout { background: #fff8e1; border-left: 3mm solid #b99658; padding: 3mm 4mm; margin: 3mm 0; border-radius: 0 2mm 2mm 0; }
+  .grid { display: grid; grid-template-columns: 24mm 1fr; gap: 2mm 4mm; margin: 2mm 0; }
+  .num { display: grid; height: 10mm; place-items: center; border-radius: 50%; background: #16324a; color: #fff; font-weight: 700; }
+  .what b { color: #16324a; }
+  .hint { display: block; color: #687582; font-size: 9.5pt; margin-top: 0.5mm; }
+  footer { margin-top: 6mm; padding-top: 2mm; border-top: 0.4pt solid #cbd8e2; color: #687582; font-size: 9pt; text-align: center; }
 </style>
 </head>
 <body>
 
 <h1>Praxis Memo</h1>
-<p class="sub">So nimmst Du Notizen auf — Schritt für Schritt.</p>
-
-<h2 class="green">Aufnahme machen</h2>
-<ol class="steps">
-  <li><b>Doppelklick</b> auf das Symbol <b>„Praxis Memo"</b> am Desktop.
-    <span class="hint">Ein schwarzes Fenster öffnet sich — das muss offen bleiben!</span></li>
-  <li>Dein <b>Browser</b> öffnet sich automatisch.
-    <span class="hint">Falls beim ersten Mal nach dem Mikrofon gefragt wird: <b>„Zulassen"</b> anklicken.</span></li>
-  <li>Auf den <b>roten Aufnahme-Knopf</b> klicken und sprechen.</li>
-  <li>Auf <b>„Stopp"</b> klicken, dann <b>„Speichern"</b>.</li>
-</ol>
+<p class="sub">Der einfache Ablauf für mehrere Sitzungen pro Patient.</p>
 
 <div class="callout">
-  <b>Wichtig:</b> Das <b>schwarze Fenster</b> niemals schließen, solange Du arbeitest. Nur den Browser oben rechts schließen, wenn Du fertig bist. Beim nächsten Start: wieder Doppelklick auf „Praxis Memo".
+  <b>Merksatz:</b> Vor der Sitzung kurz vorbereiten. Nach der Sitzung einsprechen, prüfen, speichern, nächsten Termin eintragen.
 </div>
 
-<h2>Alte Aufnahmen ansehen</h2>
-<ol class="steps">
-  <li>Alle Aufnahmen stehen in der <b>Liste</b> im Browser.</li>
-  <li><b>Klick auf einen Eintrag</b> → Du siehst den Text und kannst die Aufnahme anhören.</li>
-</ol>
-
-<h2 class="orange">Einmal im Monat: Update</h2>
-<ol class="steps">
-  <li><b>Doppelklick</b> auf <b>„Praxis Memo Update"</b> am Desktop.</li>
-  <li>Kurz warten, bis das Fenster sich schließt. Fertig.</li>
-</ol>
-
-<div class="help">
-  <b>Wenn etwas nicht funktioniert:</b><br>
-  1. Alle Fenster schließen, PC neu starten, nochmal „Praxis Memo" doppelklicken.<br>
-  2. Falls es weiter hakt: <b>Anruf bei CMG</b>.
+<h2>1. Patient anlegen</h2>
+<div class="grid">
+  <div class="num">1</div>
+  <div class="what"><b>Links „Patient anlegen" klicken.</b><span class="hint">Nur ein Kürzel verwenden, keinen Namen.</span></div>
+  <div class="num">2</div>
+  <div class="what"><b>Kürzel prüfen.</b><span class="hint">Zum Beispiel P-014. Das Kürzel steht oben beim ausgewählten Patienten.</span></div>
+  <div class="num">3</div>
+  <div class="what"><b>Nächsten Termin eintragen.</b><span class="hint">Dann sortiert die linke Liste den Patienten automatisch richtig ein.</span></div>
 </div>
 
-<footer>Praxis Memo · Version Mai 2026</footer>
+<h2>2. Nach einer Sitzung</h2>
+<div class="grid">
+  <div class="num">1</div>
+  <div class="what"><b>Patient links auswählen.</b></div>
+  <div class="num">2</div>
+  <div class="what"><b>Schritt 01 „Einsprechen": Nachnotiz diktieren oder eintippen.</b></div>
+  <div class="num">3</div>
+  <div class="what"><b>„Strukturieren" klicken.</b><span class="hint">Die App verteilt die Notiz in vier Felder.</span></div>
+  <div class="num">4</div>
+  <div class="what"><b>Schritt 02 „Prüfen": alles fachlich kontrollieren.</b><span class="hint">Kernpunkte, Absprachen, offene Punkte und Beobachtungsfokus.</span></div>
+  <div class="num">5</div>
+  <div class="what"><b>„Geprüft speichern" klicken.</b><span class="hint">Erst dann wird die Sitzung fest im Verlauf archiviert.</span></div>
+  <div class="num">6</div>
+  <div class="what"><b>Nächsten Termin eintragen.</b></div>
+</div>
+
+<h2>3. Vor der nächsten Sitzung</h2>
+<ol>
+  <li>Patient links anklicken.</li>
+  <li>Oben den <b>Schnellblick</b> lesen, falls bereits Verlauf vorhanden ist.</li>
+  <li>Bei Bedarf <b>„Anknüpfen öffnen"</b> klicken.</li>
+  <li>Im Tab <b>03 Anknüpfen</b> ältere Sitzungen im Verlauf aufklappen.</li>
+</ol>
+
+<h3>Was im Schnellblick steht</h3>
+<table>
+  <tr><th>Feld</th><th>Bedeutung</th></tr>
+  <tr><td><b>Termin</b></td><td>Der nächste eingetragene Termin.</td></tr>
+  <tr><td><b>Anknüpfen</b></td><td>Die wichtigste Vereinbarung oder der nächste Einstieg aus der letzten geprüften Sitzung.</td></tr>
+  <tr><td><b>Offen</b></td><td>Themen, die beim nächsten Termin wieder aufgenommen werden sollten.</td></tr>
+  <tr><td><b>Vorsicht</b></td><td>Warnhinweise, sensible Themen, Risiken, Schutzfaktoren oder Beobachtungsfokus.</td></tr>
+</table>
+
+<h2>4. Ab Sitzung 2 immer gleich</h2>
+<ol>
+  <li>Vorher: Patient auswählen und Schnellblick lesen.</li>
+  <li>Nachher: Wenn noch die alte Sitzung sichtbar ist, <b>„Neue Sitzung"</b> klicken.</li>
+  <li>Neue Nachnotiz einsprechen.</li>
+  <li>Strukturieren, prüfen, speichern.</li>
+  <li>Nächsten Termin eintragen.</li>
+</ol>
+
+<h2>5. Wo steht was?</h2>
+<table>
+  <tr><th>Bereich</th><th>Wofür?</th></tr>
+  <tr><td><b>Linke Liste</b></td><td>Patient auswählen, nach Termin sortiert.</td></tr>
+  <tr><td><b>01 Einsprechen</b></td><td>Neue Nachnotiz und nächster Termin.</td></tr>
+  <tr><td><b>02 Prüfen</b></td><td>KI-Entwurf kontrollieren und korrigieren.</td></tr>
+  <tr><td><b>03 Anknüpfen</b></td><td>Vorbereitung und bisheriger Verlauf.</td></tr>
+  <tr><td><b>Akte drucken</b></td><td>Lokale Druckansicht oder PDF für den ausgewählten Patienten.</td></tr>
+</table>
+
+<div class="callout">
+  <b>Wichtig:</b> Die App ersetzt keine fachliche Entscheidung. Nur geprüfte und gespeicherte Inhalte gehören in den Verlauf.
+</div>
+
+<footer>Praxis Memo · Ablauf für Miriam · Mai 2026</footer>
 
 </body>
 </html>

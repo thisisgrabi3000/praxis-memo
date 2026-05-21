@@ -57,6 +57,24 @@ Automatische Backups werden im Ordner backups abgelegt.
 Zusaetzlich kann in der App der Button "Backup erstellen" genutzt werden.
 
 
+Patientenakte drucken
+---------------------
+
+In der App den Patienten auswaehlen und oben auf "Akte drucken" klicken.
+Es oeffnet sich eine Druckansicht. Im Browser-Druckdialog kann diese Akte
+als PDF gespeichert oder auf Papier gedruckt werden.
+
+
+Bedienablauf fuer Miriam
+------------------------
+
+Der reale Ablauf ueber mehrere Sitzungen steht in:
+docs\ablaufplan-miriam.md
+
+Die druckbare Kurz-Anleitung liegt hier:
+docs\anleitung-miriam.pdf
+
+
 Wichtig
 -------
 

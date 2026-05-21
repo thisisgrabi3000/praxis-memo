@@ -87,14 +87,15 @@ git commit -m "fix: ..."
 git push
 
 <span class="c"># 2. App-ZIP bauen (neue Version-Nummer eintragen!)</span>
-TMP=$(mktemp -d)
-cp app.js index.html styles.css praxis_memo_server.py "Start Praxis Memo.bat" "KI einrichten.bat" "Datenordner oeffnen.bat" "PC KI Leistung pruefen.bat" README_PC_INSTALLATION.txt "$TMP/"
-echo "1.0.1" &gt; "$TMP/VERSION"
-(cd "$TMP" &amp;&amp; zip -q praxis-memo-app.zip *)
+"Paket erstellen.bat" auf Windows ausführen
+<span class="c"># Inhalt muss mindestens enthalten:</span>
+<span class="c"># index.html, styles.css, app.js, praxis_memo_server.py, Start Praxis Memo.bat,</span>
+<span class="c"># KI einrichten.bat, Datenordner oeffnen.bat, PC KI Leistung pruefen.bat,</span>
+<span class="c"># Besseres Modell installieren.bat, Schnelles Modell (3b) zurueck.bat, README_PC_INSTALLATION.txt</span>
 
 <span class="c"># 3. GitHub Release erstellen</span>
-gh release create v1.0.1 "$TMP/praxis-memo-app.zip" \
-  --title "v1.0.1 — kurze Beschreibung" \
+gh release create v1.0.7 "PraxisMemo-YYYY-MM-DD.zip" \
+  --title "v1.0.7 — Patientenakte-Export" \
   --notes "Was sich geändert hat..."
 
 <span class="c"># 4. Miriam anrufen: „Klick mal Update"</span>

@@ -138,14 +138,16 @@ git commit -m "fix: ..."
 git push
 
 # ZIP bauen
-TMP=$(mktemp -d)
-cp app.js index.html styles.css praxis_memo_server.py "Start Praxis Memo.bat" "KI einrichten.bat" "Datenordner oeffnen.bat" "PC KI Leistung pruefen.bat" README_PC_INSTALLATION.txt "$TMP/"
-echo "1.0.1" &gt; "$TMP/VERSION"
-(cd "$TMP" &amp;&amp; zip -q praxis-memo-app.zip *)
+"Paket erstellen.bat" auf Windows ausführen
+# oder äquivalent packen:
+# index.html, styles.css, app.js, praxis_memo_server.py,
+# Start Praxis Memo.bat, KI einrichten.bat, Datenordner oeffnen.bat,
+# PC KI Leistung pruefen.bat, Besseres Modell installieren.bat,
+# Schnelles Modell (3b) zurueck.bat, README_PC_INSTALLATION.txt
 
 # Release publishen
-gh release create v1.0.1 "$TMP/praxis-memo-app.zip" \
-  --title "v1.0.1 — kurze Beschreibung" \
+gh release create v1.0.7 "PraxisMemo-YYYY-MM-DD.zip" \
+  --title "v1.0.7 — Patientenakte-Export" \
   --notes "Was sich geändert hat..."</pre>
   </li>
   <li>Miriam anrufen: „Klick mal Update" — oder beim nächsten Besuch vor Ort selbst auslösen. Fertig.</li>
@@ -159,6 +161,7 @@ gh release create v1.0.1 "$TMP/praxis-memo-app.zip" \
   <p><strong>Starten:</strong> Doppelklick Desktop-Icon „Praxis Memo". Schwarzes Fenster offen lassen.</p>
   <p><strong>Beenden:</strong> Fenster schließen. Daten in <code>data/praxismemo-data.json</code>.</p>
   <p><strong>Backup manuell:</strong> Button „Backup erstellen" im Browser → Datei im Download-Ordner.</p>
+  <p><strong>Patientenakte:</strong> Patient auswählen → „Akte drucken" → im Browser als PDF speichern oder drucken.</p>
   <p><strong>Auto-Backups:</strong> Alle 30 Min, landen in <code>backups/YYYY-MM-DD/</code>.</p>
   <p><strong>Update:</strong> Doppelklick <code>Praxis Memo Update.bat</code>. Sichert vorher automatisch.</p>
   <p><strong>Problem:</strong> Dich anrufen. Wenn dringend: <code>KI einrichten.bat</code> nochmal — repariert oft alles.</p>

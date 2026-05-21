@@ -61,7 +61,7 @@
 |---|--------|-------------|
 | 3.1 | **§630f BGB Abs. 1** | Append-only Änderungslog pro Sitzung mit Timestamp + Diff. Ursprünglicher Inhalt muss nach Korrektur **erkennbar bleiben**. |
 | 3.2 | **§630f BGB Abs. 3** | Hauptdaten **nie automatisch löschen**, mindestens 10 Jahre lesbar nach Behandlungsende. Backup-Rotation nur für Backup-Kopien, nicht Quelle. |
-| 3.3 | **§630g BGB** | „Komplette Akte" Export pro Patient als PDF (oder strukturiertes HTML zum Drucken). Pflicht: Patient kann jederzeit Kopie verlangen. |
+| 3.3 | **§630g BGB** | „Komplette Akte" Export pro Patient als PDF (oder strukturiertes HTML zum Drucken). Demo-Stand: lokale HTML-Druckansicht über `Akte drucken`; für Prod noch fachlich prüfen, ob Inhalt/Format vollständig genug ist. |
 | 3.4 | **MDR Art. 5(5)** | Klärung mit Miriams DSB / KV: greift die Eigenherstellungs-Ausnahme? Wenn nein → MDR-Konformitätsbewertung Klasse I = größere Baustelle. Vor Prod-Start klären. |
 | 3.5 | **DSGVO Art. 32** | TOMs dokumentieren: Verschlüsselung, Zugriffsschutz, Wiederherstellbarkeit, regelmäßige Wirksamkeitsprüfung |
 | 3.6 | **DSGVO Art. 9** | Verarbeitung von Gesundheitsdaten: Rechtsgrundlage = Behandlungsvertrag + ggf. Einwilligung für KI-Strukturierung |
@@ -77,6 +77,7 @@
 | 4.3 | **Wartezeit-Anzeige** während AI | Mehr als nur „läuft…": geschätzte Restzeit, ggf. abbrechbar |
 | 4.4 | **Suche über Verlauf** verbessern | Demo hat naive O(n²) Suche; Prod: indizierte Volltext-Suche (FTS5 in SQLite) |
 | 4.5 | **Diktat-Modus pro Feld**: append vs. replace | Im Walkthrough mit Miriam klären, dann konsistent umsetzen |
+| 4.6 | **Patientenakte-Export validieren** | Demo hat HTML-Druckansicht; im Walkthrough prüfen, ob sie für Auskunftsersuchen und Aktenausdruck reicht |
 
 ---
 
@@ -126,7 +127,7 @@ Nach dem Treffen mit Miriam hier ergänzen:
 - [ ] Status-Modell (Offen/Entwurf/Geprüft — reicht das?)
 - [ ] Diktat-Append vs. -Replace per Feld
 - [ ] Backup-Strategie (USB? Network-Share? wohin?)
-- [ ] Export-Format für Auskunftsersuchen (PDF? HTML zum Drucken?)
+- [ ] Vorhandenen `Akte drucken`-Export für Auskunftsersuchen validieren (PDF aus Browser-Druckdialog ausreichend? reduzierte/erweiterte Akte nötig?)
 - [ ] Sortier-Wünsche in der Patientenliste
 - [ ] Suche-Anforderungen (Volltext? nur Patient-IDs?)
 - [ ] Vertretungs-Fall: Sieht jemand anders die Daten? Wenn ja, wie?
@@ -143,7 +144,7 @@ Nach dem Treffen mit Miriam hier ergänzen:
 
 **Phase 2: Rechtliche Pflichten**
 1. Audit-Trail UI (Versionen anzeigen + restoren)
-2. PDF-Export „Komplette Akte"
+2. Patientenakte-Export „Komplette Akte" (Demo: lokale HTML-Druckansicht mit PDF-Speichern im Browser)
 3. Backup-Rotation mit 10-Jahres-Schutz für Hauptdaten
 
 **Phase 3: UX aus Walkthrough**

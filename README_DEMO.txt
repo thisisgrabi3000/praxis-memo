@@ -9,6 +9,7 @@ Was funktioniert in der Demo
 - Patient anlegen, Felder ausfuellen
 - Termine eintragen, Auto-Sortierung nach Datum
 - Backup erstellen / wiederherstellen
+- Patientenakte ueber "Akte drucken" als Druckansicht oeffnen
 - Strukturierung von Notizen mit KI (lokal ueber Ollama, falls eingerichtet)
 
 Was NICHT funktioniert in der Demo
@@ -30,8 +31,9 @@ Einrichtung (einmalig)
    Beim ersten Start eventuell Windows-Sicherheitswarnung
    bestaetigen ("Trotzdem ausfuehren").
 
-Beim Start erscheint ein roter Banner oben in der App:
-"DEMO-MODUS - Strukturierung laeuft lokal ueber Ollama"
+Das schwarze Fenster weist auf den DEMO-Modus hin. Die Browser-App selbst
+ist dieselbe lokale App wie in der Vollversion; nur die eingegebenen Daten
+sollten fuer diese Vorschau erfunden oder anonymisiert sein.
 
 
 Beenden

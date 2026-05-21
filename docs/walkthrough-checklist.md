@@ -1,6 +1,6 @@
-# Walkthrough-Checkliste — Demo mit Miriam
+# Walkthrough-Checkliste — Miriam
 
-Ziel: Workflow durchspielen, Reaktionen sammeln, Änderungswünsche für die Praxis-Version festhalten.
+Ziel: echten Praxisablauf durchspielen, Reaktionen sammeln, Änderungswünsche für die Praxis-Version festhalten.
 
 Nicht Ziel: Code-Diskussion oder Architektur-Themen.
 
@@ -8,8 +8,8 @@ Nicht Ziel: Code-Diskussion oder Architektur-Themen.
 
 ## Vor dem Treffen
 
-- [ ] Demo lokal starten (`python3 -m http.server 3000` oder `Start Praxis Memo.bat`)
-- [ ] 2-3 Demo-Patienten anlegen, einer davon mit Verlauf (mehrere archivierte Sitzungen)
+- [ ] App lokal über `python3 praxis_memo_server.py` oder `Start Praxis Memo.bat` starten
+- [ ] 2-3 fiktive/anonymisierte Patienten anlegen, einer davon mit Verlauf (mehrere archivierte Sitzungen)
 - [ ] Backup gemacht (`Backup erstellen`-Button), damit nichts kaputtgeht
 - [ ] Notizblock + Stift für Miriams Anmerkungen
 - [ ] Mikrofon-Berechtigung im Browser einmal erteilt
@@ -54,8 +54,8 @@ Zwei Wege zum Diktieren — sie soll beide ausprobieren:
 
 **Frage:** *"Wie genau ist die Transkription? Was musst du nachbessern?"*
 
-### Feld-Diktat (kleine Mic-Symbole an einzelnen Feldern)
-- [ ] In ein einzelnes Feld (z.B. „Letzter Fokus") gezielt nachdiktieren
+### Feld-Diktat (kleine Mic-Symbole an Prüfen-/Anknüpfen-Feldern)
+- [ ] In ein einzelnes Feld gezielt nachdiktieren
 - [ ] Klappt das Anfügen oder soll es überschreiben?
 
 **Fragen:**
@@ -94,6 +94,7 @@ Zwei Wege zum Diktieren — sie soll beide ausprobieren:
 ## 6. Anknüpfen / Vorbereitung (Schritt 03)
 
 - [ ] Bei einem Patient mit Verlauf in den Schritt „Anknüpfen" wechseln
+- [ ] Schnellblick oben lesen: Termin / Anknüpfen / Offen / Vorsicht
 - [ ] Letzte Vereinbarung, offene Punkte, Beobachtungsfokus prüfen
 - [ ] Archiv aufklappen → ältere Sitzungen lesen
 
@@ -109,11 +110,13 @@ Zwei Wege zum Diktieren — sie soll beide ausprobieren:
 - [ ] Verlauf bei einem Patient durchscrollen
 - [ ] Eine alte archivierte Sitzung editieren (klappbar)
 - [ ] Im Suchfeld nach einem Stichwort suchen, das im Verlauf vorkommt
+- [ ] „Akte drucken" öffnen und die Druckansicht prüfen
+- [ ] Im Druckdialog „Als PDF speichern" gedanklich/real durchspielen
 
 **Fragen:**
 - *"Wie weit zurück willst du Sitzungen sehen können?"*
 - *"Sollen Sitzungen löschbar sein? Oder nur archivierbar/ausblendbar?"*
-- *"Brauchst du Export als PDF / Word für Akten?"*
+- *"Reicht diese Druck-/PDF-Akte für Patienten-Auskunft oder brauchst du ein anderes Format (Word, Praxissoftware-Ausdruck, reduzierte Kurzakte)?"*
 
 ---
 
@@ -135,8 +138,8 @@ Zwei Wege zum Diktieren — sie soll beide ausprobieren:
 Den realistischen Ablauf simulieren:
 
 - [ ] Sitzung mit Patient A „abschließen" → Nachnotiz diktieren → strukturieren → prüfen → archivieren
-- [ ] **Manuell** zu Patient B wechseln (Seitenleiste) → Anknüpfen-Schritt anschauen
-- [ ] „Neue Sitzung" bei Patient B beginnen
+- [ ] **Manuell** zu Patient B wechseln (Seitenleiste) → Schnellblick und Anknüpfen-Schritt anschauen
+- [ ] „Neue Sitzung" bei Patient B beginnen, danach wieder speichern und Folgetermin eintragen
 
 **Fragen:**
 - *"Wie viel Zeit hast du realistisch zwischen zwei Patienten?"*
@@ -147,8 +150,8 @@ Den realistischen Ablauf simulieren:
 
 ## 10. Datenschutz / Vertrauen
 
-- [ ] „Demo-Modus"-Banner oben zeigen und erklären (lokal, keine Cloud)
-- [ ] Datenschutz-Box in der rechten Seitenleiste lesen
+- [ ] Lokalen Betrieb erklären: Browser spricht nur mit `127.0.0.1`, Strukturierung läuft über Ollama lokal, kein Cloud-Dienst
+- [ ] Datenschutz kurz mündlich erklären: alle Daten bleiben lokal, kein Cloud-Dienst
 - [ ] Erklären: Praxisversion läuft OHNE Cloud (lokal-only)
 
 **Fragen:**
@@ -162,9 +165,9 @@ Den realistischen Ablauf simulieren:
 
 Das sind Themen die du als Behandlerin betreffen, nicht nur als Software-Nutzerin. Idealerweise vor dem Prod-Bau geklärt.
 
-- [ ] Erklären: **§630f BGB Änderungsdokumentation** — bei jeder Korrektur muss der ursprüngliche Inhalt erkennbar bleiben. Demo überschreibt aktuell still.
+- [ ] Erklären: **§630f BGB Änderungsdokumentation** — frühere geprüfte Sitzungsstände bleiben als Versionen erhalten; ein vollständiges Änderungslog über jede Feldänderung ist noch offen.
 - [ ] Erklären: **§630f Abs. 3 BGB** — Akten 10 Jahre nach Behandlungsende aufbewahren.
-- [ ] Erklären: **§630g BGB Auskunftsrecht** — Patient kann jederzeit Kopie der ganzen Akte verlangen.
+- [ ] Erklären: **§630g BGB Auskunftsrecht** — Patient kann jederzeit Kopie der ganzen Akte verlangen; Demo hat dafür jetzt `Akte drucken` als lokale HTML/PDF-Druckansicht.
 
 **Fragen:**
 - *"Wie viele Korrekturen passieren bei dir realistisch nach 'Geprüft'? Tippfehler? Nachträge?"*
@@ -190,6 +193,6 @@ Letzter Teil — offene Fragen, freier Raum für Wünsche.
 ## Nach dem Treffen
 
 - [ ] Alle Notizen in `docs/walkthrough-notes.md` schreiben (rohe Form, ungefiltert)
-- [ ] Backup der Demo-Daten archivieren falls echte Beispiele drinstecken (dann löschen)
+- [ ] Backup der Testdaten archivieren falls echte Beispiele drinstecken (dann löschen)
 - [ ] Aus den Notizen die **Prod-Spec** ableiten — was kommt rein, was bleibt draußen, was wird geändert
 - [ ] Prod-Setup separat anfangen, nicht den Demo-Code weiterbauen (frische Codebase)

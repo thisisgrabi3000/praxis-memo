@@ -171,10 +171,34 @@ function loadPatients() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return [];
     const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) && parsed.length ? parsed.map(normalizePatient) : [];
+    const rawPatients = Array.isArray(parsed) ? parsed : [];
+    if (!rawPatients.length) return [];
+    const cleaned = removeLegacyExamplePatients(rawPatients);
+    const normalized = cleaned.map(normalizePatient);
+    if (cleaned.length !== rawPatients.length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    }
+    return normalized;
   } catch {
     return [];
   }
+}
+
+function isLegacyExamplePatient(raw) {
+  const transcript = String(raw?.transcript || "");
+  return raw?.uid === "test"
+    && raw?.id === "P-001"
+    && transcript.includes("Panikattacke hatte")
+    && transcript.includes("Supermarkt an der Kasse");
+}
+
+function removeLegacyExamplePatients(list) {
+  if (!Array.isArray(list)) return [];
+  const cleaned = list.filter((patient) => !isLegacyExamplePatient(patient));
+  if (cleaned.length !== list.length) {
+    console.warn(`[praxis-memo] Demo-Beispielpatient (uid=test, P-001) entfernt; ${list.length - cleaned.length} Datensatz/Datensätze überschrieben.`);
+  }
+  return cleaned;
 }
 
 function savePatients() {
@@ -226,12 +250,15 @@ async function hydrateFromServer() {
     if (!r.ok) throw new Error();
     const payload = await r.json();
     serverStorageAvailable = true;
-    if (Array.isArray(payload.patients) && payload.patients.length) {
-      patients = payload.patients.map(normalizePatient);
+    const serverPatientsRaw = Array.isArray(payload.patients) ? payload.patients : [];
+    const serverPatients = removeLegacyExamplePatients(serverPatientsRaw);
+    if (serverPatientsRaw.length) {
+      patients = serverPatients.map(normalizePatient);
       if (!patients.some((p) => p.uid === selectedUid)) {
         selectedUid = patients[0]?.uid || null;
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
+      if (serverPatients.length !== serverPatientsRaw.length) queueServerSave();
       renderAll();
     } else if (patients.length) {
       // Server leer, lokal aber Daten → einmalig hochschieben.
@@ -275,18 +302,23 @@ async function createManualBackup() {
   showToast("Backup als Datei heruntergeladen.");
 }
 
-function downloadBackupFile() {
-  const payload = getStoragePayload();
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   a.href = url;
-  a.download = `praxismemo-backup-${stamp}.json`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  // Revoke verzögert: ein sofortiges Revoke kann den Download-Fetch abbrechen.
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function downloadBackupFile() {
+  const payload = getStoragePayload();
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  downloadBlob(blob, `praxismemo-backup-${stamp}.json`);
 }
 
 async function restoreFromFile(file) {
@@ -325,17 +357,16 @@ const processingStatus = document.querySelector("#processingStatus");
 const structureButton = document.querySelector("#structureButton");
 const approveButton = document.querySelector("#approveButton");
 const newSessionButton = document.querySelector("#newSessionButton");
+const exportPatientButton = document.querySelector("#exportPatientButton");
 const storageStatus = document.querySelector("#storageStatus");
 const backupButton = document.querySelector("#backupButton");
 const restoreButton = document.querySelector("#restoreButton");
 const restoreInput = document.querySelector("#restoreInput");
 const addPatientButton = document.querySelector("#addPatientButton");
 const deletePatientButton = document.querySelector("#deletePatientButton");
+const quickPrep = document.querySelector("#quickPrep");
 const sessionHistory = document.querySelector("#sessionHistory");
 const sessionCountBadge = document.querySelector("#sessionCountBadge");
-const contextPrepBrief = document.querySelector("#contextPrepBrief");
-const contextHistory = document.querySelector("#contextHistory");
-const contextSessionCount = document.querySelector("#contextSessionCount");
 const kiStatus = document.querySelector("#kiStatus");
 const lengthWarning = document.querySelector("#lengthWarning");
 const toast = document.querySelector("#toast");
@@ -434,9 +465,11 @@ function renderAll() {
     return;
   }
 
+  document.body.classList.remove("no-patient");
   resolvePendingStructure(patient);
 
   deletePatientButton.disabled = false;
+  if (exportPatientButton) exportPatientButton.disabled = false;
   setValue(patientIdInput, patient.id);
   statusSelect.value = patient.status;
   patientMeta.textContent = formatNextAppointment(patient);
@@ -454,25 +487,25 @@ function renderAll() {
   processingStatus.textContent = patient.status === "Geprüft" ? "Fachlich geprüft" : "Editierbarer Entwurf";
   updateTranscriptLengthWarning(patient.transcript);
   renderStorageStatus();
+  renderQuickPrep(patient);
   renderSessionHistory(patient);
-  renderContextPanel(patient);
   renderPatients();
   setActiveStep(activeStep);
 }
 
 function renderEmptyState() {
+  document.body.classList.add("no-patient");
   deletePatientButton.disabled = true;
+  if (exportPatientButton) exportPatientButton.disabled = true;
   patientIdInput.value = "";
   statusSelect.value = "Offen";
   patientMeta.textContent = "Noch keine Patienten angelegt";
   document.querySelectorAll("[data-field], [data-summary], [data-prep]").forEach((f) => (f.value = ""));
   processingStatus.textContent = "";
   updateTranscriptLengthWarning("");
+  if (quickPrep) quickPrep.innerHTML = "";
   if (sessionHistory) sessionHistory.innerHTML = "";
-  if (contextPrepBrief) contextPrepBrief.innerHTML = "";
-  if (contextHistory) contextHistory.innerHTML = "";
   if (sessionCountBadge) sessionCountBadge.textContent = "0 Einträge";
-  if (contextSessionCount) contextSessionCount.textContent = "0 Einträge";
 }
 
 // ---- Inhaltliche Suche durch Patientendaten und archivierte Sitzungen ----
@@ -617,6 +650,60 @@ function getLastCheckedSession(patient) {
   return sorted.find((s) => s.status === "Geprüft") || sorted[0] || null;
 }
 
+function memorySignal(patient) {
+  const memory = patient?.memory || {};
+  const buckets = ["risks", "sensitiveTopics", "protectiveFactors"];
+  for (const bucket of buckets) {
+    const item = (memory[bucket] || []).find((entry) => entry.text && entry.status !== "erledigt");
+    if (item) return `${MEMORY_LABELS[bucket]}: ${item.text}`;
+  }
+  return "";
+}
+
+function renderQuickPrep(patient) {
+  if (!quickPrep) return;
+  const latest = getLastCheckedSession(patient);
+  const anchor = patient.prep?.anchor || latest?.summary?.agreement || patient.agreement || "";
+  const open = patient.open || patient.summary?.open || latest?.summary?.open || "";
+  const caution = memorySignal(patient) || patient.prep?.caution || patient.summary?.watch || latest?.summary?.watch || "";
+  if (!latest && !anchor && !open && !caution) {
+    quickPrep.innerHTML = "";
+    return;
+  }
+  const latestLabel = latest
+    ? `${formatDateShort(latest.date)}${latest.focus ? ` · ${clip(latest.focus, 64)}` : ""}`
+    : "Noch kein archivierter Verlauf";
+
+  quickPrep.innerHTML = `
+    <div class="quick-prep-head">
+      <div>
+        <p class="eyebrow">Schnellblick</p>
+        <h3>Nächste Sitzung vorbereiten</h3>
+      </div>
+      <button class="quiet-action quick-prep-action" type="button" data-open-prep>
+        Anknüpfen öffnen
+      </button>
+    </div>
+    <div class="quick-prep-grid">
+      <article>
+        <span>Termin</span>
+        <strong>${escapeHtml(formatNextAppointment(patient))}</strong>
+      </article>
+      <article>
+        <span>Anknüpfen</span>
+        <strong>${escapeHtml(anchor || latestLabel)}</strong>
+      </article>
+      <article>
+        <span>Offen</span>
+        <strong>${escapeHtml(open || "Keine offenen Punkte dokumentiert")}</strong>
+      </article>
+      <article class="${caution ? "has-signal" : ""}">
+        <span>Vorsicht</span>
+        <strong>${escapeHtml(caution || "Keine Warnhinweise dokumentiert")}</strong>
+      </article>
+    </div>`;
+}
+
 function renderSessionHistory(patient) {
   if (!sessionHistory) return;
   const sessions = sortSessions(patient.sessions || []);
@@ -660,34 +747,6 @@ function renderSessionHistory(patient) {
         </label>
       </div>
     </details>`).join("");
-}
-
-function renderContextPanel(patient) {
-  const sessions = sortSessions(patient.sessions || []);
-  const latest = getLastCheckedSession(patient);
-  if (contextSessionCount) {
-    contextSessionCount.textContent = `${sessions.length} ${sessions.length === 1 ? "Eintrag" : "Einträge"}`;
-  }
-
-  if (contextPrepBrief) {
-    contextPrepBrief.innerHTML = latest
-      ? `<p><strong>Anknüpfen</strong>${escapeHtml(latest.summary.agreement)}</p>
-         <p><strong>Offen</strong>${escapeHtml(latest.summary.open)}</p>
-         <p><strong>Letzter Fokus</strong>${escapeHtml(latest.focus)}</p>
-         ${renderMemoryBlock(patient)}`
-      : `<p><strong>Noch kein Verlauf</strong>Nach dem ersten geprüften Eintrag entsteht hier die Vorbereitung.</p>
-         ${renderMemoryBlock(patient)}`;
-  }
-
-  if (!contextHistory) return;
-  contextHistory.innerHTML = sessions.length
-    ? sessions.slice(0, 5).map((s) => `
-        <div class="compact-history-item">
-          <span>${escapeHtml(formatDateShort(s.date))} · ${escapeHtml(s.status)}</span>
-          <strong>${escapeHtml(clip(s.focus, 72))}</strong>
-          <p>${escapeHtml(clip(s.summary.agreement || s.summary.core, 110))}</p>
-        </div>`).join("")
-    : `<div class="empty-history"><strong>Kein Verlauf</strong><span>Noch keine Sitzung archiviert.</span></div>`;
 }
 
 function setActiveStep(step) {
@@ -785,7 +844,7 @@ function updateSessionSummary(sessionId, fieldName, value) {
   if (!session) return;
   session.summary[fieldName] = value;
   savePatients();
-  renderContextPanel(getPatient());
+  renderQuickPrep(getPatient());
 }
 
 function updateSessionField(sessionId, fieldName, value) {
@@ -925,6 +984,328 @@ function renderMemoryBlock(patient) {
     })
     .filter(Boolean);
   return sections.join("");
+}
+
+// ============================================================
+// PATIENTENAKTE EXPORT
+// ============================================================
+
+function textToExportHtml(value, fallback = "Nicht dokumentiert") {
+  const text = String(value || "").trim();
+  if (!text) return `<div class="export-value export-empty">${escapeHtml(fallback)}</div>`;
+  return `<div class="export-value">${escapeHtml(text).replace(/\n/g, "<br>")}</div>`;
+}
+
+function exportField(label, value, fallback) {
+  return `
+    <section class="export-field">
+      <h3>${escapeHtml(label)}</h3>
+      ${textToExportHtml(value, fallback)}
+    </section>`;
+}
+
+function exportMeta(label, value) {
+  return `
+    <div class="export-meta-item">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value || "Nicht dokumentiert")}</strong>
+    </div>`;
+}
+
+function formatExportDateTime(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value || "";
+  const date = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${date}, ${time}`;
+}
+
+function exportSummaryFields(summary = {}) {
+  return `
+    <div class="export-grid two">
+      ${exportField("Kernpunkte", summary.core)}
+      ${exportField("Absprachen", summary.agreement)}
+      ${exportField("Offene Punkte", summary.open)}
+      ${exportField("Beobachtungsfokus", summary.watch)}
+    </div>`;
+}
+
+function exportPrepFields(prep = {}) {
+  return `
+    <div class="export-grid three">
+      ${exportField("Woran anknüpfen", prep.anchor)}
+      ${exportField("Einstiegsfrage", prep.opening)}
+      ${exportField("Vorsicht / fachlich prüfen", prep.caution)}
+    </div>`;
+}
+
+function exportMemorySection(patient) {
+  const buckets = ["risks", "sensitiveTopics", "protectiveFactors", "openQuestions", "agreements"];
+  const sections = buckets.map((bucket) => {
+    const items = patient.memory?.[bucket] || [];
+    if (!items.length) {
+      return `
+        <section class="export-memory-bucket">
+          <h3>${escapeHtml(MEMORY_LABELS[bucket])}</h3>
+          <p class="export-empty">Keine Einträge</p>
+        </section>`;
+    }
+    return `
+      <section class="export-memory-bucket">
+        <h3>${escapeHtml(MEMORY_LABELS[bucket])}</h3>
+        <ul>
+          ${items.map((item) => `
+            <li>
+              <span>${escapeHtml(item.text)}</span>
+              <small>${escapeHtml([
+                item.status ? `Status: ${item.status}` : "",
+                item.sourceDate ? `Quelle: ${formatDateShort(item.sourceDate)}` : "",
+                item.lastSeenAt ? `zuletzt: ${formatExportDateTime(item.lastSeenAt)}` : ""
+              ].filter(Boolean).join(" · "))}</small>
+            </li>`).join("")}
+        </ul>
+      </section>`;
+  });
+  return `<div class="export-grid two">${sections.join("")}</div>`;
+}
+
+function exportSessionBlock(session, index, { revision = false } = {}) {
+  const summary = session.summary || {};
+  const prep = session.prep || {};
+  const revisions = Array.isArray(session.revisions) ? session.revisions : [];
+  return `
+    <article class="${revision ? "export-revision" : "export-session"}">
+      <header class="export-session-head">
+        <div>
+          <span>${revision ? "Frühere Version" : `Sitzung ${index + 1}`}</span>
+          <h3>${escapeHtml(formatDateShort(session.date))}${session.time ? `, ${escapeHtml(session.time)}` : ""}</h3>
+        </div>
+        <strong>${escapeHtml(session.status || "Status offen")}</strong>
+      </header>
+      <div class="export-grid two">
+        ${exportField("Fokus", session.focus)}
+        ${exportField("Transkript", session.transcript)}
+      </div>
+      ${exportSummaryFields(summary)}
+      ${exportPrepFields(prep)}
+      ${session.revisedAt ? `<p class="export-note">Zuletzt überarbeitet: ${escapeHtml(formatExportDateTime(session.revisedAt))}</p>` : ""}
+      ${!revision && revisions.length ? `
+        <section class="export-revisions">
+          <h3>Frühere Versionen</h3>
+          ${revisions.map((rev, revIndex) => exportSessionBlock(rev, revIndex, { revision: true })).join("")}
+        </section>` : ""}
+    </article>`;
+}
+
+function safeFilePart(value) {
+  return String(value || "patient")
+    .trim()
+    .replace(/[^a-z0-9äöüß_-]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 42) || "patient";
+}
+
+function buildPatientExportHtml(patient) {
+  const sessions = sortSessions(patient.sessions || []);
+  const exportedAt = new Date().toISOString();
+  const title = `Patientenakte ${patient.id || ""}`.trim();
+  return `<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(title)}</title>
+    <style>
+      :root {
+        --ink: #17222d;
+        --muted: #5f6e79;
+        --line: #c9d4dc;
+        --soft: #f3f6f8;
+        --accent: #16324a;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #eef2f5;
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 14px;
+        line-height: 1.48;
+      }
+      main {
+        width: min(1040px, calc(100% - 32px));
+        margin: 24px auto;
+        padding: 28px;
+        background: #fff;
+        border: 1px solid var(--line);
+      }
+      header.export-title {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+        padding-bottom: 18px;
+        border-bottom: 2px solid var(--accent);
+      }
+      h1, h2, h3, p { margin-top: 0; }
+      h1 { margin-bottom: 6px; color: var(--accent); font-size: 30px; line-height: 1.08; }
+      h2 {
+        margin: 28px 0 12px;
+        padding-bottom: 7px;
+        border-bottom: 1px solid var(--line);
+        color: var(--accent);
+        font-size: 19px;
+      }
+      h3 { margin-bottom: 7px; color: var(--accent); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+      .export-subtitle, .export-note, .export-empty { color: var(--muted); }
+      .export-subtitle { margin: 0; }
+      .export-meta {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 16px;
+      }
+      .export-meta-item, .export-field, .export-memory-bucket {
+        border: 1px solid var(--line);
+        background: var(--soft);
+        padding: 11px 12px;
+        break-inside: avoid;
+      }
+      .export-meta-item span {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .export-meta-item strong { display: block; color: var(--ink); }
+      .export-grid { display: grid; gap: 10px; margin-bottom: 10px; }
+      .export-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .export-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .export-value { white-space: normal; overflow-wrap: anywhere; }
+      .export-session {
+        margin-top: 16px;
+        padding: 16px;
+        border: 1px solid var(--line);
+        break-inside: avoid;
+      }
+      .export-session-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 12px;
+      }
+      .export-session-head span, .export-session-head strong {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .export-session-head h3 {
+        margin: 2px 0 0;
+        font-size: 16px;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+      .export-memory-bucket ul { display: grid; gap: 8px; margin: 0; padding-left: 18px; }
+      .export-memory-bucket li span { display: block; }
+      .export-memory-bucket small { color: var(--muted); }
+      .export-revisions { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+      .export-revision {
+        margin-top: 10px;
+        padding: 12px;
+        border: 1px dashed var(--line);
+        background: #fbfcfd;
+        break-inside: avoid;
+      }
+      @page { margin: 16mm; }
+      @media print {
+        body { background: #fff; }
+        main { width: 100%; margin: 0; padding: 0; border: 0; }
+        h2 { break-after: avoid; }
+        .export-grid.two, .export-grid.three, .export-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 720px) {
+        main { width: 100%; margin: 0; padding: 18px; border: 0; }
+        header.export-title { display: block; }
+        .export-grid.two, .export-grid.three, .export-meta { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="export-title">
+        <div>
+          <h1>${escapeHtml(title)}</h1>
+          <p class="export-subtitle">Lokaler Export aus Praxis Memo. Inhalte fachlich prüfen; Statusangaben stammen aus der App.</p>
+        </div>
+        <p class="export-note">Erstellt: ${escapeHtml(formatExportDateTime(exportedAt))}</p>
+      </header>
+
+      <section class="export-meta">
+        ${exportMeta("Patient", patient.id)}
+        ${exportMeta("Status", patient.status)}
+        ${exportMeta("Nächster Termin", formatNextAppointment(patient))}
+        ${exportMeta("Archivierte Sitzungen", String(sessions.length))}
+      </section>
+
+      <h2>Aktuelle Übersicht</h2>
+      <div class="export-grid two">
+        ${exportField("Letzter Fokus", patient.focus)}
+        ${exportField("Letzte Vereinbarung", patient.agreement)}
+        ${exportField("Offen", patient.open)}
+        ${exportField("Aktuelles Transkript / Entwurf", patient.transcript)}
+      </div>
+      ${exportSummaryFields(patient.summary || {})}
+      ${exportPrepFields(patient.prep || {})}
+
+      <h2>Patientenregister</h2>
+      ${exportMemorySection(patient)}
+
+      <h2>Archivierte Sitzungen</h2>
+      ${sessions.length
+        ? sessions.map((session, index) => exportSessionBlock(session, index)).join("")
+        : `<p class="export-empty">Keine archivierten Sitzungen vorhanden.</p>`}
+    </main>
+  </body>
+</html>`;
+}
+
+function downloadPatientExport(patient, html) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadBlob(blob, `praxis-memo-akte-${safeFilePart(patient.id)}-${stamp}.html`);
+}
+
+function exportCurrentPatient() {
+  const patient = getPatient();
+  if (!patient) {
+    showToast("Bitte zuerst einen Patienten auswählen.");
+    return;
+  }
+  const html = buildPatientExportHtml(patient);
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    downloadPatientExport(patient, html);
+    showToast("Druckansicht wurde blockiert — HTML-Datei heruntergeladen.");
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  window.setTimeout(() => {
+    try {
+      printWindow.print();
+      showToast("Patientenakte geöffnet — im Druckdialog als PDF speichern.");
+    } catch {
+      showToast("Patientenakte als Druckansicht geöffnet.");
+    }
+  }, 300);
 }
 
 // ============================================================
@@ -1559,9 +1940,8 @@ function enhanceFieldDictation() {
 function getFieldLabel(target) {
   const label = target.closest("label");
   const labelText = label?.querySelector("span")?.textContent?.trim();
-  const contextText = target.closest(".context-block")?.querySelector(".eyebrow")?.textContent?.trim();
   const panelText = target.closest(".panel")?.querySelector("h3")?.textContent?.trim();
-  return labelText || contextText || panelText || "Textfeld";
+  return labelText || panelText || "Textfeld";
 }
 
 // ============================================================
@@ -1615,6 +1995,7 @@ statusSelect.addEventListener("change", () => {
 });
 
 newSessionButton.addEventListener("click", () => { stopDictation(false); startNewSession(); });
+exportPatientButton.addEventListener("click", () => { stopDictation(false); exportCurrentPatient(); });
 backupButton.addEventListener("click", () => { stopDictation(false); createManualBackup(); });
 restoreButton.addEventListener("click", () => restoreInput.click());
 restoreInput.addEventListener("change", async (e) => {
@@ -1628,6 +2009,14 @@ patientSearch.addEventListener("input", renderPatients);
 recordButton.addEventListener("click", startDictation);
 structureButton.addEventListener("click", structureTranscript);
 approveButton.addEventListener("click", approveCurrent);
+document.addEventListener("click", (event) => {
+  if (event.target.closest("[data-add-patient-empty]")) addPatient();
+});
+quickPrep?.addEventListener("click", (event) => {
+  if (!event.target.closest("[data-open-prep]")) return;
+  activeStep = "prep";
+  setActiveStep("prep");
+});
 
 document.querySelectorAll(".workflow-step").forEach((btn) => {
   btn.addEventListener("click", () => setActiveStep(btn.dataset.step));

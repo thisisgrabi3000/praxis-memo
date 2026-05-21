@@ -7,6 +7,24 @@ Kontext: Lokale Web-App für eine Psychotherapeutin (Miriam), entwickelt auf mac
 
 ## 0. Änderungsprotokoll
 
+### 2026-05-21 — Oberfläche vereinfacht + Miriam-Ablaufplan
+
+- Frontend: rechte Kontextspalte aus der Hauptansicht entfernt; Vorbereitung ist jetzt über den Schnellblick und den Tab `Anknüpfen` erreichbar statt doppelt in einer dritten Spalte.
+- Leerer Startzustand: Ohne Patient werden Workflow, Aufnahme und Eingabefelder ausgeblendet; sichtbar bleibt nur ein ruhiger Startbereich mit `Patient anlegen`.
+- Schritt `01 Einsprechen`: sichtbar bleiben nur Nachnotiz und nächster Termin. `Letzter Fokus`, `Letzte Vereinbarung` und `Offen` liegen unter `Zusätzliche Notizen` und sind standardmäßig zugeklappt.
+- Schnellblick: wird nur noch angezeigt, wenn für den ausgewählten Patienten echte Vorbereitung/Verlauf vorhanden ist. Neue leere Patienten starten dadurch ruhiger.
+- Datenbereinigung: alter Beispielpatient `P-001` mit Panik-/Supermarkt-Beispieltext aus `data/praxismemo-data.json` entfernt. `app.js` filtert genau diesen alten Beispieltext zusätzlich aus altem Browser-Cache, damit er nicht wieder hochgespeichert wird.
+- Neue Doku: `docs/ablaufplan-miriam.md` beschreibt den realen Ablauf über mehrere Sitzungen und erklärt, was beim Vorbereiten wo angezeigt wird. `docs/anleitung-miriam.html` wurde auf diesen Ablauf umgeschrieben.
+- Test: `tests/test_patient_export.js` prüft zusätzlich, dass nur der alte Beispielpatient entfernt wird und normale `P-001`-Einträge nicht pauschal gelöscht werden.
+
+### 2026-05-21 — Patientenakte-Export
+
+- Frontend: neuer Button `Akte drucken` in der Patiententopbar.
+- Export: `buildPatientExportHtml()` erzeugt eine lokale, druckoptimierte HTML-Akte für den ausgewählten Patienten.
+- Inhalt: aktuelle Übersicht, strukturierte Felder, Vorbereitung, Patientenregister, archivierte Sitzungen und frühere Versionen (`session.revisions`).
+- Bedienung: Druckansicht öffnet in einem neuen Browserfenster; im Druckdialog kann als PDF gespeichert werden. Falls das Fenster blockiert wird, lädt die App eine HTML-Datei herunter.
+- Test: `tests/test_patient_export.js` prüft die Exportausgabe inkl. Archiv, Register und Revisionen.
+
 ### 2026-05-21 — Umschaltbares KI-Modell (Release v1.0.6)
 
 - `data/ki-modell.txt` (pro PC, überlebt App-Updates, da `data/` nicht überschrieben wird) bestimmt das Strukturierungsmodell.
@@ -34,7 +52,7 @@ Diese Änderungen wurden nach dem zweiten Härtetest eingebaut und sind für Cla
 - Echter Ollama-Test mit `P-001`/negiertem `P-007`: keine fremde ID in der Ausgabe.
 
 **Für Claude beim Deploy:**
-- Commit/Release muss mindestens enthalten: `app.js`, `praxis_memo_server.py`, `README.md`, `README_DEMO.txt`, `Paket erstellen.bat`, `PC KI Leistung pruefen.bat`, `docs/HANDOVER.md`, `docs/walkthrough-checklist.md`, `docs/installation-guide.html`, `docs/update-anleitung.html`, `docs/release-notes-v1.0.5.md`.
+- Commit/Release muss mindestens enthalten: `index.html`, `styles.css`, `app.js`, `praxis_memo_server.py`, `README.md`, `README_DEMO.txt`, `Paket erstellen.bat`, `PC KI Leistung pruefen.bat`, `Besseres Modell installieren.bat`, `Schnelles Modell (3b) zurueck.bat`, `docs/HANDOVER.md`, `docs/ablaufplan-miriam.md`, `docs/anleitung-miriam.html`, `docs/anleitung-miriam.pdf`, `docs/walkthrough-checklist.md`, `docs/installation-guide.html`, `docs/installation-guide.pdf`, `docs/update-anleitung.html`, `docs/release-notes-v1.0.7.md`, `tests/test_patient_export.js`.
 - Release-ZIP für `Praxis Memo Update.bat` muss enthalten: `index.html`, `styles.css`, `app.js`, `praxis_memo_server.py`, `Start Praxis Memo.bat`, `KI einrichten.bat`, `Datenordner oeffnen.bat`, `PC KI Leistung pruefen.bat`, `README_PC_INSTALLATION.txt`, optional `VERSION`.
 - Nach Deployment auf dem NUC zuerst `PC KI Leistung pruefen.bat` ausführen und `data/pc-ki-check.txt` prüfen, bevor `qwen2.5:7b` als Standard erwogen wird.
 
@@ -297,22 +315,31 @@ Die Strukturierung merkt sich den `lockedUid` (zum Start des Requests) und schre
 ## 5. Workflow der Psychotherapeutin
 
 ```
-Vor dem Termin
-  → Miriam wählt den Patienten in der Liste, Tab "Anknüpfen"
-  → sie sieht Vorbereitung aus letzter Sitzung
+Einmalig pro Patient
+  → "Patient anlegen"
+  → Kürzel prüfen
+  → nächsten Termin eintragen
 
-Sitzung findet statt
+Vor einem Termin
+  → Miriam wählt den Patienten links
+  → Schnellblick lesen: Termin, Anknüpfen, Offen, Vorsicht
+  → falls nötig "Anknüpfen öffnen" und Verlauf aufklappen
 
-Nach der Sitzung
-  → Miriam wählt den Patienten, Tab "Einsprechen"
-  → klickt Mikrofon-Button, spricht Nachnotiz
-  → Klickt nochmal → "Wird verarbeitet…" (10–20 Sek)
-  → Text erscheint im Transkript-Feld
-  → Klickt "Strukturieren" → KI verteilt auf 4 Felder
+Nach einer Sitzung
+  → Patient links auswählen
+  → bei Folgesitzung ggf. "Neue Sitzung"
+  → Tab "Einsprechen": Nachnotiz diktieren oder eintippen
+  → "Strukturieren" → KI verteilt auf 4 Felder
   → Tab "Prüfen": Felder kontrollieren, ggf. anpassen
   → "Geprüft speichern" → Sitzung wird archiviert, Tab "Anknüpfen" öffnet sich
-  → Nächsten Termin in "Datum & Uhrzeit" eintragen → fertig
+  → nächsten Termin eintragen
 ```
+
+**Was bei Vorbereitung angezeigt wird:**  
+Der Schnellblick erscheint nur, wenn bereits Verlauf/Vorbereitung existiert. Er zeigt den eingetragenen Folgetermin, den wichtigsten Anknüpfpunkt, offene Punkte und den wichtigsten Vorsichtshinweis aus Memory/Register/Vorbereitung. Im Tab `Anknüpfen` stehen dieselben Vorbereitungstexte editierbar plus der archivierte Sitzungsverlauf. Ältere Sitzungen sind aufgeklappt lesbar, aber nicht als Dauer-Panel rechts sichtbar.
+
+**Mehrere Sitzungen pro Patient:**  
+Jede geprüfte Sitzung wird in `patient.sessions[]` archiviert. `Neue Sitzung` leert das aktuelle Transkript und erzeugt eine neue `currentSessionId`, übernimmt aber sinnvolle Anknüpfpunkte aus der letzten geprüften Sitzung. `Geprüft speichern` schreibt die neue Sitzung in den Verlauf und aktualisiert `patient.prep` sowie das Memory-Register.
 
 **Patientenwechsel ist manuell.** Es gibt keinen zeit-/terminbasierten automatischen Wechsel. Die Patientenliste ist nach `nextDate`/`nextTime` sortiert, sodass anstehende Termine oben stehen; die Auswahl trifft die Therapeutin selbst per Klick.
 
@@ -346,6 +373,11 @@ Nach der Sitzung
 
 ## 8. Offene Punkte / nächste Schritte
 
+### Kürzlich erledigt
+- **Oberfläche vereinfacht:** Rechte Kontextspalte entfernt, leerer Startzustand reduziert, Schnellblick nur bei echtem Verlauf, Zusatzfelder in `Einsprechen` zugeklappt. Alter `P-001`-Beispieltext wurde aus `data/praxismemo-data.json` entfernt und per Cache-Migration abgesichert.
+- **Miriam-Ablaufplan:** `docs/ablaufplan-miriam.md` und `docs/anleitung-miriam.html/.pdf` beschreiben den realen Ablauf über mehrere Sitzungen pro Patient und was bei der Vorbereitung wo angezeigt wird.
+- **Patientenakte-Export:** Button `Akte drucken` öffnet für den ausgewählten Patienten eine lokale HTML-Druckansicht. Enthalten sind aktueller Stand, strukturierte Felder, Vorbereitung, Patientenregister, archivierte Sitzungen und frühere Versionen. PDF entsteht über den Browser-Druckdialog (`Als PDF speichern`). Fallback bei blockiertem Popup: HTML-Download.
+
 ### Bestätigt offen
 - **Miriams RAM-Angabe fehlt noch** (Intel NUC 2022, vermutlich 16 GB). Aktuell qwen2.5:3b + whisper base — läuft auch auf 8 GB. Vor einer Modellumstellung auf `qwen2.5:7b` auf dem NUC `PC KI Leistung pruefen.bat` ausführen und `data/pc-ki-check.txt` prüfen. Faustregel im Skript: ab 16 GB `7b` testbar, 12-15 GB eingeschränkt, unter 12 GB nicht empfohlen.
 - **Kein Import aus Psyprax.** Psyprax hat keinen bekannten direkten Datenexport für Termine. Wenn sich das ändert, wäre ein `.ics`-Reader der naheliegende Ansatz (Datei in `data/calendar.ics` legen, App liest alle 5 Min).
@@ -361,25 +393,32 @@ Nach der Sitzung
 
 | Datei | Zweck | Letzte Änderung |
 |---|---|---|
-| `index.html` | App-Struktur, kein JS | 2026-05-10 |
-| `app.js` | Gesamte App-Logik (~1200 Zeilen) | 2026-05-10 |
-| `styles.css` | Design, unverändert bis auf neue Klassen am Ende | 2026-05-10 |
-| `praxis_memo_server.py` | Lokaler HTTP-Server + Whisper-Transkription | 2026-05-10 |
+| `index.html` | App-Struktur, vereinfachte Hauptansicht, `Akte drucken`-Button | 2026-05-21 |
+| `app.js` | Gesamte App-Logik inkl. Diktat, KI, Verlauf, Export, Beispieltext-Cleanup (~2000 Zeilen) | 2026-05-21 |
+| `styles.css` | Design inkl. Zwei-Spalten-Layout und zugeklappte Zusatzfelder | 2026-05-21 |
+| `praxis_memo_server.py` | Lokaler HTTP-Server + Whisper-Transkription + Ollama-Proxy | 2026-05-21 |
 | `Start Praxis Memo.bat` | Startet Python-Server, öffnet Browser | unverändert |
 | `KI einrichten.bat` | Installiert Ollama + faster-whisper + Modelle | 2026-05-10 |
 | `Datenordner oeffnen.bat` | Öffnet data/ und backups/ im Explorer | unverändert |
 | `PC KI Leistung pruefen.bat` | Prüft RAM/CPU/Ollama-Modelle auf dem NUC, schreibt `data/pc-ki-check.txt` | 2026-05-21 |
-| `Paket erstellen.bat` | Packt Lieferdateien als ZIP (ohne data/) | 2026-05-10 |
-| `README_PC_INSTALLATION.txt` | Anleitung für Miriam | veraltet, Update empfohlen |
+| `Besseres Modell installieren.bat` | Lädt/aktiviert optional `qwen2.5:7b` ab 16 GB RAM | 2026-05-21 |
+| `Schnelles Modell (3b) zurueck.bat` | Schaltet zurück auf `qwen2.5:3b` | 2026-05-21 |
+| `Paket erstellen.bat` | Packt Lieferdateien als ZIP (ohne data/) | 2026-05-21 |
+| `tests/test_patient_export.js` | Isolierter Test für Patientenakte-Export inkl. Escaping, Register, Revisionen | 2026-05-21 |
+| `docs/ablaufplan-miriam.md` | Realer Bedienablauf über mehrere Sitzungen pro Patient | 2026-05-21 |
+| `docs/anleitung-miriam.html/.pdf` | Druckbare Anleitung für Miriam | 2026-05-21 |
+| `README_PC_INSTALLATION.txt` | Kurzanleitung für lokale Windows-Installation und Aktenexport | 2026-05-21 |
 | `data/` | Arbeitsdaten, nicht ins Repo | — |
 | `backups/` | Backups, nicht ins Repo | — |
-| `docs/HANDOVER.md` | Dieses Dokument | 2026-05-10 |
+| `docs/HANDOVER.md` | Dieses Dokument | 2026-05-21 |
 
 ### Gelöschte Dateien
+- `AnyDesk.exe` — alter lokaler Installer; AnyDesk ist nicht Teil des Betriebs
+- `architecture-map.html` — ungetracktes Analyse-Artefakt, nicht Teil der App/Doku
+- `.DS_Store`, `__pycache__/`, `.claude/`, `.claude-flow/` — lokale Cache-/Tool-Artefakte
 - `PraxisMemo-PC/` — war ein vollständiges Duplikat aller App-Dateien
 - `praxismemo-demo-strato.zip` — Build-Artefakt
 - `PraxisMemo-PC.zip` — Build-Artefakt
-- `__pycache__/` — Python-Cache
 
 ---
 
@@ -393,3 +432,4 @@ Nach der Sitzung
 - **Ollama muss separat laufen.** Die App prüft `http://localhost:11434/api/tags` beim Start. Wenn Ollama nicht läuft, ist Strukturierung deaktiviert, aber der Rest funktioniert.
 - **Miriam hat kein technisches Verständnis.** Jede Änderung an der UX muss selbsterklärend sein. Keine Dialoge mit mehr als zwei Optionen. Keine Fachbegriffe.
 - **Datenschutz ist kritisch.** Die App soll nie Audio oder Patientendaten nach außen senden. Vor jeder Änderung am Netzwerk-Code prüfen.
+- **Export bleibt lokal.** `Akte drucken` erzeugt nur Browser-HTML aus dem vorhandenen State; kein Upload, kein externer PDF-Dienst. Beim Weiterbau auf HTML-Escaping achten (`escapeHtml`) und keine Patientendaten in Dateinamen außer dem Kürzel.
