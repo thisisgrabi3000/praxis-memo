@@ -7,6 +7,14 @@ Kontext: Lokale Web-App für eine Psychotherapeutin (Miriam), entwickelt auf mac
 
 ## 0. Änderungsprotokoll
 
+### 2026-05-21 — Umschaltbares KI-Modell (Release v1.0.6)
+
+- `data/ki-modell.txt` (pro PC, überlebt App-Updates, da `data/` nicht überschrieben wird) bestimmt das Strukturierungsmodell.
+- Server: `active_model()` liest die Datei pro `/api/structure`-Anfrage, Allowlist `{qwen2.5:3b, qwen2.5:7b}`, Fallback `qwen2.5:3b`. `/api/structure-status` meldet zusätzlich `model`.
+- Frontend: KI-Status zeigt das aktive Modell an („KI bereit (lokal, qwen2.5:7b)").
+- `Besseres Modell installieren.bat` (Hard-Block <16 GB RAM, `ollama pull qwen2.5:7b`, aktiviert nur nach erfolgreichem Pull) und `Schnelles Modell (3b) zurueck.bat` (Rückfahrkarte).
+- `Paket erstellen.bat` und Release-ZIP enthalten beide neuen Bats.
+
 ### 2026-05-21 — Deploy-Handover + NUC-Leistungscheck (Release v1.0.5-Kandidat)
 
 Diese Änderungen wurden nach dem zweiten Härtetest eingebaut und sind für Claude/Deployment relevant:
