@@ -34,7 +34,8 @@ STATIC_ALLOWLIST = {"index.html", "app.js", "styles.css"}
 
 WHISPER_MODEL_NAME = "base"
 OLLAMA_BASE = "http://127.0.0.1:11434"
-OLLAMA_MODEL = "qwen2.5:3b"
+DEFAULT_OLLAMA_MODEL = "qwen2.5:3b"
+ALLOWED_MODELS = {"qwen2.5:3b", "qwen2.5:7b"}
 OLLAMA_TIMEOUT_SECONDS = 240
 OLLAMA_NUM_CTX = 12288   # ~5000 Wörter Eingabe sicher verarbeitbar
 MAX_TRANSCRIPT_WORDS = 5000  # darüber: Server lehnt ab (Inhalt würde verloren gehen)
@@ -125,6 +126,19 @@ def ollama_available() -> bool:
             return resp.status == 200
     except Exception:
         return False
+
+
+MODEL_FILE = DATA_DIR / "ki-modell.txt"
+
+
+def active_model() -> str:
+    """Liest das aktive Strukturierungsmodell aus data/ki-modell.txt.
+    Fallback auf DEFAULT_OLLAMA_MODEL bei fehlender/leerer/ungültiger Datei."""
+    try:
+        name = MODEL_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return DEFAULT_OLLAMA_MODEL
+    return name if name in ALLOWED_MODELS else DEFAULT_OLLAMA_MODEL
 
 
 def _check_word_limit(transcript: str) -> None:
@@ -228,7 +242,7 @@ def structure_via_ollama(transcript: str, patient_id: str = "") -> dict:
     _check_word_limit(transcript)
 
     body = json.dumps({
-        "model": OLLAMA_MODEL,
+        "model": active_model(),
         "messages": _structure_messages(transcript, patient_id),
         "stream": False,
         "format": "json",
