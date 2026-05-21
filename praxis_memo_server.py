@@ -150,18 +150,27 @@ def _strip_cjk(text: str) -> str:
     return re.sub(r"\s+", " ", cleaned).strip()
 
 
-def _structure_messages(transcript: str) -> list:
+def _structure_messages(transcript: str, patient_id: str = "") -> list:
+    patient_context = (
+        f"Aktueller Patient: {patient_id}. Erwähne ausschließlich dieses Patienten-Kürzel, "
+        "falls überhaupt ein Kürzel nötig ist. Andere Patienten-Kürzel dürfen in der Antwort "
+        "nicht erscheinen, auch nicht als Negation oder offene Frage.\n"
+        if patient_id else ""
+    )
     user_prompt = (
         "Du bist ein Dokumentationssystem für eine psychiatrische oder psychotherapeutische Praxis. "
         "Analysiere die folgende Sitzungs-Nachnotiz einer behandelnden Person und verteile den Inhalt "
         "präzise auf vier Felder.\n\n"
+        f"{patient_context}"
         f"Nachnotiz:\n{transcript}\n\n"
         "WICHTIG: Antworte AUSSCHLIESSLICH auf Deutsch. Verwende KEINE chinesischen, "
         "japanischen, koreanischen oder andere fremdsprachigen Schriftzeichen — nur deutsche "
         "Buchstaben, Umlaute und Standard-Satzzeichen.\n"
         "WICHTIG: Erfinde oder verändere KEINE Patienten-Kürzel oder -Nummern (z.B. P-001). "
         "Übernimm ein Kürzel nur, wenn es wörtlich in der Nachnotiz steht; ansonsten erwähne "
-        "gar keines.\n"
+        "gar keines. Wenn eine fremde Patienten-ID nur zur Abgrenzung oder Negation genannt wird "
+        "(z.B. 'kein Bezug zu P-007'), ignoriere diese fremde ID vollständig und nimm sie nicht "
+        "in offene Fragen oder Beobachtungen auf.\n"
         "WICHTIG: Stelle KEINE Diagnosen und triff KEINE Therapieentscheidungen. Halte klar "
         "auseinander, was der Patient berichtet, was als offene Frage/Hypothese formuliert ist, "
         "was vereinbart wurde und welche Risiken/Schutzfaktoren beobachtet werden sollen. "
@@ -201,12 +210,26 @@ def _extract_json(content: str) -> dict:
     return parsed
 
 
-def structure_via_ollama(transcript: str) -> dict:
+def _validate_patient_ids(parsed: dict, patient_id: str) -> None:
+    if not patient_id:
+        return
+    output_text = " ".join(str(parsed.get(key, "")) for key in ("core", "agreement", "open", "watch"))
+    output_ids = set(re.findall(r"\bP-[A-Za-z0-9-]+\b", output_text))
+    foreign_ids = sorted(pid for pid in output_ids if pid != patient_id)
+    if foreign_ids:
+        raise RuntimeError(
+            "KI-Antwort enthält fremde Patientenkürzel: "
+            + ", ".join(foreign_ids)
+            + ". Strukturierung wurde aus Sicherheitsgründen nicht gespeichert."
+        )
+
+
+def structure_via_ollama(transcript: str, patient_id: str = "") -> dict:
     _check_word_limit(transcript)
 
     body = json.dumps({
         "model": OLLAMA_MODEL,
-        "messages": _structure_messages(transcript),
+        "messages": _structure_messages(transcript, patient_id),
         "stream": False,
         "format": "json",
         "options": {
@@ -226,12 +249,14 @@ def structure_via_ollama(transcript: str) -> dict:
         response_data = json.loads(resp.read().decode("utf-8"))
 
     content = (response_data.get("message") or {}).get("content", "").strip()
-    return _extract_json(content)
+    parsed = _extract_json(content)
+    _validate_patient_ids(parsed, patient_id)
+    return parsed
 
 
-def structure_transcript(transcript: str) -> tuple[dict, str]:
+def structure_transcript(transcript: str, patient_id: str = "") -> tuple[dict, str]:
     """Returns (result_dict, mode); mode is always 'local' (Ollama, on-device)."""
-    return structure_via_ollama(transcript), "local"
+    return structure_via_ollama(transcript, patient_id), "local"
 
 
 def now_stamp() -> str:
@@ -465,11 +490,12 @@ class PraxisMemoHandler(BaseHTTPRequestHandler):
 
         if path == "/api/structure":
             transcript = (payload.get("transcript") or "").strip()
+            patient_id = (payload.get("patientId") or "").strip()
             if not transcript:
                 self.send_json(400, {"ok": False, "error": "Kein Transkript"})
                 return
             try:
-                result, mode = structure_transcript(transcript)
+                result, mode = structure_transcript(transcript, patient_id)
                 self.send_json(200, {"ok": True, "result": result, "mode": mode})
             except Exception as exc:
                 logger.exception("Strukturierung fehlgeschlagen")

@@ -9,7 +9,7 @@ Was funktioniert in der Demo
 - Patient anlegen, Felder ausfuellen
 - Termine eintragen, Auto-Sortierung nach Datum
 - Backup erstellen / wiederherstellen
-- Strukturierung von Notizen mit KI (laeuft ueber OpenAI in der Cloud)
+- Strukturierung von Notizen mit KI (lokal ueber Ollama, falls eingerichtet)
 
 Was NICHT funktioniert in der Demo
 ----------------------------------
@@ -31,7 +31,7 @@ Einrichtung (einmalig)
    bestaetigen ("Trotzdem ausfuehren").
 
 Beim Start erscheint ein roter Banner oben in der App:
-"DEMO-MODUS - Strukturierung laeuft ueber OpenAI"
+"DEMO-MODUS - Strukturierung laeuft lokal ueber Ollama"
 
 
 Beenden
@@ -41,9 +41,12 @@ Das schwarze Konsolenfenster schliessen.
 
 Wichtig
 =======
-Diese Demo nutzt einen OpenAI-Account und sendet die eingegebenen
-Notizen ueber das Internet. Deshalb ausschliesslich erfundene oder
-anonymisierte Daten verwenden.
+Diese Demo sendet keine Notizen an OpenAI oder andere Cloud-Dienste.
+Strukturierung und Diktat funktionieren nur, wenn Ollama und Whisper
+lokal eingerichtet wurden.
+
+Trotzdem ausschliesslich erfundene oder anonymisierte Daten verwenden,
+bis Datenschutz, Verschluesselung und Backup-Konzept fachlich geprueft sind.
 
 Fuer den echten Praxisbetrieb gibt es eine Vollversion, die alles
 lokal auf dem PC verarbeitet (kein Internet, keine Cloud).

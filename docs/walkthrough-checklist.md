@@ -147,9 +147,9 @@ Den realistischen Ablauf simulieren:
 
 ## 10. Datenschutz / Vertrauen
 
-- [ ] „Demo-Modus"-Banner oben zeigen und erklären (OpenAI Cloud)
+- [ ] „Demo-Modus"-Banner oben zeigen und erklären (lokal, keine Cloud)
 - [ ] Datenschutz-Box in der rechten Seitenleiste lesen
-- [ ] Erklären: Prod-Version wird OHNE Cloud laufen (lokal-only)
+- [ ] Erklären: Praxisversion läuft OHNE Cloud (lokal-only)
 
 **Fragen:**
 - *"Was musst du gegenüber deinen Patienten verantworten können?"*

@@ -1,11 +1,33 @@
 # Praxis Memo — Übergabedokument
 
-Letzte Aktualisierung: 2026-05-20  
+Letzte Aktualisierung: 2026-05-21  
 Kontext: Lokale Web-App für eine Psychotherapeutin (Miriam), entwickelt auf macOS, Zielplattform Windows-PC im Praxisbetrieb.
 
 ---
 
 ## 0. Änderungsprotokoll
+
+### 2026-05-21 — Deploy-Handover + NUC-Leistungscheck (Release v1.0.5-Kandidat)
+
+Diese Änderungen wurden nach dem zweiten Härtetest eingebaut und sind für Claude/Deployment relevant:
+
+1. **Fremde Patienten-IDs doppelt abgesichert** — `/api/structure` bekommt jetzt `patientId`; Server-Prompt und Server-Validierung blockieren fremde `P-*`-IDs in der KI-Antwort. Frontend-Validierung blockiert ebenfalls jede fremde ID vor Übernahme. Der reale Ollama-Test „P-001, kein Bezug zu P-007“ gab danach kein `P-007` mehr aus.
+2. **Re-Strukturierung bei Patientenwechsel abgesichert** — wenn eine KI-Strukturierung fertig wird, während die Behandlerin zu einem anderen Patienten gewechselt hat und vorhandene Felder überschrieben würden, wird das Ergebnis als `patient.pendingStructure` gespeichert. Beim Zurückwechseln wird aktiv gefragt, ob die fertige Strukturierung übernommen oder verworfen werden soll. Ergebnis geht nicht mehr still verloren.
+3. **Langzeitgedächtnis für sensible Inhalte geschärft** — Risiken, Schutzfaktoren und sensible Themen werden zusätzlich aus dem Rohtranskript extrahiert, nicht nur aus der KI-Zusammenfassung. `Familie` wurde als zu breiter Schutzfaktor entfernt; Memory-Snippets werden außerdem an Semikolon/Pipe/Newline getrennt, damit „Gewalt in der Familie“ nicht als Teil eines Schutzfaktors gespeichert wird.
+4. **NUC-Leistungscheck ergänzt** — neue Datei `PC KI Leistung pruefen.bat` prüft auf dem Windows-NUC RAM, CPU, Ollama, `qwen2.5:3b` und `qwen2.5:7b`. Sie schreibt `data/pc-ki-check.txt`, lädt nichts herunter und ändert keine Patientendaten.
+5. **Deploy-Paket aktualisiert** — `Paket erstellen.bat` packt `PC KI Leistung pruefen.bat` jetzt mit ins ZIP. Release-ZIP muss diese Datei enthalten.
+6. **Doku-Reste korrigiert** — `README_DEMO.txt` und `docs/walkthrough-checklist.md` sprechen nicht mehr von OpenAI/Cloud-Demo.
+
+**Verifikation am 2026-05-21:**
+- `/private/tmp/praxismemo-whisper-venv/bin/python -m py_compile praxis_memo_server.py`
+- `node --check app.js`
+- Frontend-Workflow-Simulation: Feldnachträge, Pending-Strukturierung nach Patientenwechsel, Audio-Patientenlock, sensible Memory-Klassifikation inklusive Trauma/Gewalt, passiver Todesgedanken und Schutzfaktor Schwester.
+- Echter Ollama-Test mit `P-001`/negiertem `P-007`: keine fremde ID in der Ausgabe.
+
+**Für Claude beim Deploy:**
+- Commit/Release muss mindestens enthalten: `app.js`, `praxis_memo_server.py`, `README.md`, `README_DEMO.txt`, `Paket erstellen.bat`, `PC KI Leistung pruefen.bat`, `docs/HANDOVER.md`, `docs/walkthrough-checklist.md`, `docs/installation-guide.html`, `docs/update-anleitung.html`, `docs/release-notes-v1.0.5.md`.
+- Release-ZIP für `Praxis Memo Update.bat` muss enthalten: `index.html`, `styles.css`, `app.js`, `praxis_memo_server.py`, `Start Praxis Memo.bat`, `KI einrichten.bat`, `Datenordner oeffnen.bat`, `PC KI Leistung pruefen.bat`, `README_PC_INSTALLATION.txt`, optional `VERSION`.
+- Nach Deployment auf dem NUC zuerst `PC KI Leistung pruefen.bat` ausführen und `data/pc-ki-check.txt` prüfen, bevor `qwen2.5:7b` als Standard erwogen wird.
 
 ### 2026-05-20 — Gedächtnisregister + ID-Härtung (Release v1.0.4)
 
@@ -61,7 +83,10 @@ Behebung von 8 im Härtetest gefundenen Befunden:
 ## 1. Projektübersicht
 
 **Was ist das?**  
-Eine lokale Browser-App zur Sitzungsdokumentation. Die Ärztin spricht nach jeder Therapiestunde eine Nachnotiz ein. Die KI strukturiert den Text in vier Felder (Kernpunkte, Absprachen, Offene Punkte, Beobachtungsfokus). Die App zeigt vor dem nächsten Termin automatisch die Vorbereitung für den jeweiligen Patienten.
+Eine lokale Browser-App zur Sitzungsdokumentation. Miriam ist Dipl.-Psych., psychologische Psychotherapeutin mit Kassenzulassung, Verhaltenstherapie, Zielgruppe Erwachsene, Einzel- und Gruppenpsychotherapie. Behandlungsschwerpunkte: ADHS, Angststörungen, arbeitsplatzbezogene psychische Störungen (Mobbing/Burnout), Depression und soziale Angst; ergänzende Verfahren u.a. Entspannungsverfahren und Schematherapie. Sie spricht nach jeder Sitzung eine Nachnotiz ein. Die KI strukturiert den Text in vier Felder (Kernpunkte, Absprachen, Offene Punkte, Beobachtungsfokus). Die App zeigt vor dem nächsten Termin automatisch die Vorbereitung für den jeweiligen Patienten.
+
+**Fachlicher Zuschnitt für Tests/Prompts:**  
+Nicht primär psychiatrische Medikation testen, sondern psychotherapeutische Verläufe in Verhaltenstherapie: Exposition/Angstbewältigung, Aktivitätsaufbau, ADHS-Organisation, Arbeitsplatzbelastung, Mobbing/Burnout, soziale Angst, depressive Symptomatik, Entspannung/Skills, Schematherapie-Themen, Einzel- und Gruppenkontext. Risiko-/Krisenhinweise bleiben wichtig, die App darf aber keine Diagnosen oder Therapieentscheidungen treffen.
 
 **Technischer Stack:**
 - `index.html` + `styles.css` + `app.js` — reines Vanilla-JS, kein Framework, kein Build-Step
@@ -260,7 +285,7 @@ Die Strukturierung merkt sich den `lockedUid` (zum Start des Requests) und schre
 
 ---
 
-## 5. Workflow der Ärztin
+## 5. Workflow der Psychotherapeutin
 
 ```
 Vor dem Termin
@@ -313,7 +338,7 @@ Nach der Sitzung
 ## 8. Offene Punkte / nächste Schritte
 
 ### Bestätigt offen
-- **Miriams RAM-Angabe fehlt noch** (Intel NUC 2022, vermutlich 16 GB). Aktuell qwen2.5:3b + whisper base — läuft auch auf 8 GB. Falls 16+ GB vorhanden: in `KI einrichten.bat` `qwen2.5:3b` auf `qwen2.5:7b` und whisper `base` auf `small` heben, dann ist die Strukturierung präziser.
+- **Miriams RAM-Angabe fehlt noch** (Intel NUC 2022, vermutlich 16 GB). Aktuell qwen2.5:3b + whisper base — läuft auch auf 8 GB. Vor einer Modellumstellung auf `qwen2.5:7b` auf dem NUC `PC KI Leistung pruefen.bat` ausführen und `data/pc-ki-check.txt` prüfen. Faustregel im Skript: ab 16 GB `7b` testbar, 12-15 GB eingeschränkt, unter 12 GB nicht empfohlen.
 - **Kein Import aus Psyprax.** Psyprax hat keinen bekannten direkten Datenexport für Termine. Wenn sich das ändert, wäre ein `.ics`-Reader der naheliegende Ansatz (Datei in `data/calendar.ics` legen, App liest alle 5 Min).
 
 ### Empfohlen
@@ -334,6 +359,7 @@ Nach der Sitzung
 | `Start Praxis Memo.bat` | Startet Python-Server, öffnet Browser | unverändert |
 | `KI einrichten.bat` | Installiert Ollama + faster-whisper + Modelle | 2026-05-10 |
 | `Datenordner oeffnen.bat` | Öffnet data/ und backups/ im Explorer | unverändert |
+| `PC KI Leistung pruefen.bat` | Prüft RAM/CPU/Ollama-Modelle auf dem NUC, schreibt `data/pc-ki-check.txt` | 2026-05-21 |
 | `Paket erstellen.bat` | Packt Lieferdateien als ZIP (ohne data/) | 2026-05-10 |
 | `README_PC_INSTALLATION.txt` | Anleitung für Miriam | veraltet, Update empfohlen |
 | `data/` | Arbeitsdaten, nicht ins Repo | — |

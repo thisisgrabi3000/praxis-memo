@@ -129,17 +129,17 @@
 <h2>Release-Workflow für CMG (das nächste Update bauen)</h2>
 
 <ol>
-  <li>Code in <code>app.js</code> / <code>index.html</code> / <code>styles.css</code> / <code>praxis_memo_server.py</code> ändern.</li>
+  <li>Code in <code>app.js</code> / <code>index.html</code> / <code>styles.css</code> / <code>praxis_memo_server.py</code> / relevanten <code>.bat</code>-Dateien ändern.</li>
   <li>Version in <code>VERSION</code>-File bumpen (falls separat gepflegt) oder direkt im Release-Tag.</li>
   <li>Im Repo-Ordner:
     <pre>cd "/Users/cmg/Documents/Claude Test Ordner/Miriams Memory Assistent"
-git add app.js index.html styles.css praxis_memo_server.py
+git add app.js index.html styles.css praxis_memo_server.py *.bat README*.txt README.md docs/HANDOVER.md docs/release-notes-*.md
 git commit -m "fix: ..."
 git push
 
 # ZIP bauen
 TMP=$(mktemp -d)
-cp app.js index.html styles.css praxis_memo_server.py "$TMP/"
+cp app.js index.html styles.css praxis_memo_server.py "Start Praxis Memo.bat" "KI einrichten.bat" "Datenordner oeffnen.bat" "PC KI Leistung pruefen.bat" README_PC_INSTALLATION.txt "$TMP/"
 echo "1.0.1" &gt; "$TMP/VERSION"
 (cd "$TMP" &amp;&amp; zip -q praxis-memo-app.zip *)
 

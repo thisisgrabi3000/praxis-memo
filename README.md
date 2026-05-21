@@ -1,6 +1,6 @@
 # Praxis Memo
 
-Lokale Browser-App als Gedächtnis- und Vorbereitungsassistent für psychiatrische oder psychotherapeutische Sitzungsnotizen. Der Fokus liegt auf Verlauf, offenen Fragen, Vereinbarungen, Risiken, Schutzfaktoren und sensiblen Themen pro Patient. Die App diagnostiziert nicht und ersetzt keine fachliche Prüfung.
+Lokale Browser-App als Gedächtnis- und Vorbereitungsassistent für psychotherapeutische Sitzungsnotizen. Zielkontext ist eine psychologische Psychotherapeutin mit Verhaltenstherapie für Erwachsene, Einzel- und Gruppenpsychotherapie. Typische Schwerpunkte sind ADHS, Angststörungen, soziale Angst, Depression sowie arbeitsplatzbezogene psychische Störungen wie Mobbing oder Burnout. Der Fokus liegt auf Verlauf, offenen Fragen, Vereinbarungen, Risiken, Schutzfaktoren und sensiblen Themen pro Patient. Die App diagnostiziert nicht und ersetzt keine fachliche Prüfung.
 
 ## Lokal starten
 
@@ -11,6 +11,8 @@ python3 praxis_memo_server.py
 ```
 
 Der Server bindet `127.0.0.1:3000` und öffnet den Browser automatisch. `python3 -m http.server` liefert nur die statische Oberfläche **ohne** Diktat/KI und ist nicht ausreichend.
+
+Auf dem Praxis-PC kann `PC KI Leistung pruefen.bat` per Doppelklick ausgeführt werden. Das Skript prüft RAM, CPU und vorhandene Ollama-Modelle und schreibt einen Bericht nach `data/pc-ki-check.txt`; es lädt nichts herunter.
 
 ## Diktierfunktion
 

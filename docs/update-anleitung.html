@@ -82,13 +82,13 @@
 
 <pre><span class="c"># 1. Code committen + pushen</span>
 cd "/Users/cmg/Documents/Claude Test Ordner/Miriams Memory Assistent"
-git add app.js index.html styles.css praxis_memo_server.py
+git add app.js index.html styles.css praxis_memo_server.py *.bat README*.txt README.md docs/HANDOVER.md docs/release-notes-*.md
 git commit -m "fix: ..."
 git push
 
 <span class="c"># 2. App-ZIP bauen (neue Version-Nummer eintragen!)</span>
 TMP=$(mktemp -d)
-cp app.js index.html styles.css praxis_memo_server.py "$TMP/"
+cp app.js index.html styles.css praxis_memo_server.py "Start Praxis Memo.bat" "KI einrichten.bat" "Datenordner oeffnen.bat" "PC KI Leistung pruefen.bat" README_PC_INSTALLATION.txt "$TMP/"
 echo "1.0.1" &gt; "$TMP/VERSION"
 (cd "$TMP" &amp;&amp; zip -q praxis-memo-app.zip *)
 

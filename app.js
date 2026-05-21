@@ -52,6 +52,7 @@ function createEmptyPatient(uid, id) {
     prep: { anchor: "", opening: "", caution: "" },
     memory: createMemoryState(),
     currentSessionId: makeId("session"),
+    pendingStructure: null,
     sessions: []
   };
 }
@@ -106,7 +107,23 @@ function normalizePatient(raw) {
     },
     memory: createMemoryState(raw.memory || {}),
     currentSessionId: raw.currentSessionId || makeId("session"),
+    pendingStructure: normalizePendingStructure(raw.pendingStructure),
     sessions: Array.isArray(raw.sessions) ? raw.sessions.map(normalizeSession) : []
+  };
+}
+
+function normalizePendingStructure(raw) {
+  if (!raw || typeof raw !== "object" || !raw.result) return null;
+  return {
+    id: raw.id || makeId("pending"),
+    createdAt: raw.createdAt || new Date().toISOString(),
+    overwriteLabels: Array.isArray(raw.overwriteLabels) ? raw.overwriteLabels : [],
+    result: {
+      core: String(raw.result.core || ""),
+      agreement: String(raw.result.agreement || ""),
+      open: String(raw.result.open || ""),
+      watch: String(raw.result.watch || "")
+    }
   };
 }
 
@@ -416,6 +433,8 @@ function renderAll() {
     return;
   }
 
+  resolvePendingStructure(patient);
+
   deletePatientButton.disabled = false;
   setValue(patientIdInput, patient.id);
   statusSelect.value = patient.status;
@@ -542,7 +561,7 @@ function renderPatients() {
           return `
           <button class="patient-button${active}" type="button" data-uid="${escapeHtml(p.uid)}" data-search-hit="${contentHit ? "1" : ""}">
             <strong>${escapeHtml(p.id)}</strong>
-            <span class="mini-status">${escapeHtml(p.status)}</span>
+            <span class="mini-status">${escapeHtml(p.pendingStructure ? "KI fertig" : p.status)}</span>
             <span>${escapeHtml(p.nextTime || "Uhrzeit offen")}</span>
             <span class="patient-focus">${escapeHtml(clip(p.focus || p.agreement, 92))}</span>
             ${contentHit ? `<span class="patient-search-hit">${escapeHtml(contentHit.source)}: ${escapeHtml(contentHit.snippet)}</span>` : ""}
@@ -805,11 +824,19 @@ function hasRiskSignal(text) {
 }
 
 function hasProtectiveSignal(text) {
-  return /schutz|ressource|schwester|bruder|freund|freundin|familie|kontakt|stabilisierend|krisenkarte|notfall/i.test(text || "");
+  return /schutz|ressource|schwester|bruder|freund|freundin|unterstütz|stabilisierend|krisenkarte|notfall/i.test(text || "");
 }
 
 function hasSensitiveSignal(text) {
   return /missbrauch|trauma|gewalt|übergriff|sexuell|sucht|ptbs|vergewalt/i.test(text || "");
+}
+
+function signalSnippet(text, predicate) {
+  const chunks = String(text || "")
+    .split(/[.!?]\s+|\s+\|\s+|;\s+|\n+/)
+    .map((part) => normalizeMemoryText(part))
+    .filter(Boolean);
+  return chunks.find((part) => predicate(part)) || "";
 }
 
 function upsertMemoryItem(patient, bucket, text, session) {
@@ -851,10 +878,14 @@ function updatePatientMemoryFromSession(patient, session) {
     if (hasProtectiveSignal(text)) upsertMemoryItem(patient, "protectiveFactors", text, session);
   });
 
-  const combined = `${summary.core || ""} ${summary.open || ""} ${summary.watch || ""}`;
-  if (hasSensitiveSignal(combined)) upsertMemoryItem(patient, "sensitiveTopics", summary.watch || summary.open || summary.core, session);
-  if (hasRiskSignal(combined)) upsertMemoryItem(patient, "risks", summary.watch || summary.open || summary.core, session);
-  if (hasProtectiveSignal(combined)) upsertMemoryItem(patient, "protectiveFactors", summary.watch || summary.core, session);
+  const summaryText = `${summary.core || ""} ${summary.open || ""} ${summary.watch || ""}`;
+  const combined = `${summaryText} ${session.transcript || ""}`;
+  const sensitiveText = signalSnippet(summaryText, hasSensitiveSignal) || signalSnippet(session.transcript, hasSensitiveSignal);
+  const riskText = signalSnippet(summaryText, hasRiskSignal) || signalSnippet(session.transcript, hasRiskSignal);
+  const protectiveText = signalSnippet(summaryText, hasProtectiveSignal) || signalSnippet(session.transcript, hasProtectiveSignal);
+  if (hasSensitiveSignal(combined)) upsertMemoryItem(patient, "sensitiveTopics", sensitiveText || summary.watch || summary.open || summary.core, session);
+  if (hasRiskSignal(combined)) upsertMemoryItem(patient, "risks", riskText || summary.watch || summary.open || summary.core, session);
+  if (hasProtectiveSignal(combined)) upsertMemoryItem(patient, "protectiveFactors", protectiveText || summary.watch || summary.core, session);
 }
 
 function memoryLines(patient, bucket, limit = 5) {
@@ -1076,7 +1107,7 @@ function textContainsTerm(text, term) {
   return new RegExp(`\\b${term}\\w*`, "i").test(text || "");
 }
 
-function validateStructuredResult(parsed, sourceInput) {
+function validateStructuredResult(parsed, sourceInput, patientId = "") {
   if (!parsed || typeof parsed !== "object") {
     throw new Error("KI-Antwort ist kein Objekt");
   }
@@ -1086,10 +1117,13 @@ function validateStructuredResult(parsed, sourceInput) {
   }
 
   const outputText = STRUCTURE_REQUIRED_KEYS.map((key) => parsed[key] || "").join(" ");
-  const inventedIds = (outputText.match(/\bP-[A-Za-z0-9-]+\b/g) || [])
-    .filter((id) => !sourceInput.includes(id));
+  const outputIds = outputText.match(/\bP-[A-Za-z0-9-]+\b/g) || [];
+  const inventedIds = outputIds.filter((id) => {
+    if (patientId && id !== patientId) return true;
+    return !patientId && !sourceInput.includes(id);
+  });
   if (inventedIds.length) {
-    throw new Error(`KI-Antwort enthält nicht belegte Patientenkürzel: ${inventedIds.join(", ")}`);
+    throw new Error(`KI-Antwort enthält fremde oder nicht belegte Patientenkürzel: ${inventedIds.join(", ")}`);
   }
 
   const unsupportedTerms = CLINICAL_CLAIM_TERMS.filter(
@@ -1098,6 +1132,81 @@ function validateStructuredResult(parsed, sourceInput) {
   if (unsupportedTerms.length) {
     throw new Error(`KI-Antwort enthält nicht belegte klinische Begriffe: ${unsupportedTerms.join(", ")}`);
   }
+}
+
+function structuredOverwriteLabels(patient, parsed) {
+  const ops = [
+    { key: "core", label: "Kernpunkte", cur: patient.summary.core },
+    { key: "agreement", label: "Vereinbarungen", cur: patient.summary.agreement },
+    { key: "open", label: "Offene Punkte", cur: patient.summary.open },
+    { key: "watch", label: "Beobachtungsfokus", cur: patient.summary.watch }
+  ];
+  return ops
+    .filter((op) => parsed[op.key] && (op.cur || "").trim() && parsed[op.key].trim() !== (op.cur || "").trim())
+    .map((op) => op.label);
+}
+
+function applyStructuredResult(target, parsed, { forceOverwrite = false } = {}) {
+  const canWrite = (cur) => forceOverwrite || !(cur || "").trim();
+
+  if (parsed.core && canWrite(target.summary.core)) target.summary.core = parsed.core;
+  if (parsed.agreement && canWrite(target.summary.agreement)) {
+    target.summary.agreement = parsed.agreement;
+    target.agreement = parsed.agreement;
+  }
+  if (parsed.open && canWrite(target.summary.open)) {
+    target.summary.open = parsed.open;
+    target.open = parsed.open;
+  }
+  if (parsed.watch && canWrite(target.summary.watch)) target.summary.watch = parsed.watch;
+
+  target.prep.anchor = target.summary.agreement;
+  target.prep.opening = target.focus ? `Anknüpfen an: ${clip(target.focus, 120)}` : "";
+  target.prep.caution = target.summary.watch || "Fachliche Bewertung bleibt manuell.";
+  target.status = "Entwurf";
+}
+
+function storePendingStructure(target, parsed, overwriteLabels) {
+  target.pendingStructure = {
+    id: makeId("pending"),
+    createdAt: new Date().toISOString(),
+    overwriteLabels,
+    result: {
+      core: parsed.core || "",
+      agreement: parsed.agreement || "",
+      open: parsed.open || "",
+      watch: parsed.watch || ""
+    }
+  };
+  target.status = "Entwurf";
+}
+
+function resolvePendingStructure(patient) {
+  const pending = normalizePendingStructure(patient.pendingStructure);
+  if (!pending) {
+    patient.pendingStructure = null;
+    return;
+  }
+
+  const overwriteLabels = pending.overwriteLabels.length
+    ? pending.overwriteLabels
+    : structuredOverwriteLabels(patient, pending.result);
+  const shouldApply = !overwriteLabels.length || window.confirm(
+    "Für diesen Patienten liegt eine fertige KI-Strukturierung vor, die während eines Patientenwechsels abgeschlossen wurde.\n\n" +
+    "Folgende Felder enthalten bereits Notizen und würden ersetzt:\n\n" +
+    overwriteLabels.map((label) => `• ${label}`).join("\n") +
+    "\n\nJetzt übernehmen?"
+  );
+
+  if (shouldApply) {
+    applyStructuredResult(patient, pending.result, { forceOverwrite: true });
+    showToast("Ausstehende Strukturierung übernommen. Bitte fachlich prüfen.");
+  } else {
+    showToast("Ausstehende Strukturierung verworfen. Bestehende Felder bleiben unverändert.");
+  }
+
+  patient.pendingStructure = null;
+  savePatients();
 }
 
 // Baut die Eingabe für die KI: Transkript plus bereits in Felder eingetragene
@@ -1148,6 +1257,7 @@ async function structureTranscript() {
   // Patienten-UID merken — falls während der Anfrage gewechselt wird, schreiben wir
   // trotzdem in den richtigen Patienten und springen NICHT auf review.
   const lockedUid = patient.uid;
+  const lockedPatientId = patient.id;
 
   structureButton.disabled = true;
   processingStatus.textContent = "KI strukturiert… (kann 30-90 s dauern)";
@@ -1159,27 +1269,19 @@ async function structureTranscript() {
       headers: { "Content-Type": "application/json" },
       // Bereits in Felder eingetragene Notizen mitgeben, damit Nachträge nach der
       // ersten Strukturierung nicht verloren gehen.
-      body: JSON.stringify({ transcript: structureInput })
+      body: JSON.stringify({ transcript: structureInput, patientId: lockedPatientId })
     });
     const data = await r.json();
     if (!r.ok || !data.ok) throw new Error(data.error || "Fehler");
 
     const parsed = data.result || {};
-    validateStructuredResult(parsed, structureInput);
+    validateStructuredResult(parsed, structureInput, lockedPatientId);
     const target = patients.find((p) => p.uid === lockedUid);
     if (!target) throw new Error("Patient nicht mehr vorhanden");
 
     // Vor dem Überschreiben prüfen: welche Felder haben bereits Inhalt, der durch
     // abweichenden KI-Text ersetzt würde?
-    const ops = [
-      { key: "core", label: "Kernpunkte", cur: target.summary.core },
-      { key: "agreement", label: "Vereinbarungen", cur: target.summary.agreement },
-      { key: "open", label: "Offene Punkte", cur: target.summary.open },
-      { key: "watch", label: "Beobachtungsfokus", cur: target.summary.watch }
-    ];
-    const overwriteLabels = ops
-      .filter((op) => parsed[op.key] && (op.cur || "").trim() && parsed[op.key].trim() !== (op.cur || "").trim())
-      .map((op) => op.label);
+    const overwriteLabels = structuredOverwriteLabels(target, parsed);
 
     let allowOverwrite = true;
     if (overwriteLabels.length) {
@@ -1190,21 +1292,16 @@ async function structureTranscript() {
           "\n\nVorhandene Notizen wurden der KI als Kontext mitgegeben. Trotzdem ersetzen?"
         );
       } else {
-        // Patient nicht sichtbar → nicht stillschweigend überschreiben.
-        allowOverwrite = false;
+        // Patient nicht sichtbar: nicht stillschweigend überschreiben und das
+        // Ergebnis nicht verwerfen. Beim Zurückwechseln wird der Merge bestätigt.
+        storePendingStructure(target, parsed, overwriteLabels);
+        savePatients();
+        renderPatients();
+        showToast(`Strukturierung für ${target.id} fertig — beim Zurückwechseln übernehmen oder verwerfen.`);
+        return;
       }
     }
-    const canWrite = (cur) => allowOverwrite || !(cur || "").trim();
-
-    if (parsed.core && canWrite(target.summary.core)) target.summary.core = parsed.core;
-    if (parsed.agreement && canWrite(target.summary.agreement)) { target.summary.agreement = parsed.agreement; target.agreement = parsed.agreement; }
-    if (parsed.open && canWrite(target.summary.open)) { target.summary.open = parsed.open; target.open = parsed.open; }
-    if (parsed.watch && canWrite(target.summary.watch)) target.summary.watch = parsed.watch;
-
-    target.prep.anchor = target.summary.agreement;
-    target.prep.opening = target.focus ? `Anknüpfen an: ${clip(target.focus, 120)}` : "";
-    target.prep.caution = target.summary.watch || "Fachliche Bewertung bleibt manuell.";
-    target.status = "Entwurf";
+    applyStructuredResult(target, parsed, { forceOverwrite: allowOverwrite });
 
     savePatients();
 
