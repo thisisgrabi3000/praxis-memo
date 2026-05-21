@@ -29,8 +29,11 @@ function normalizeMemoryItem(raw) {
     id: raw.id || makeId("mem"),
     text: raw.text || "",
     status: raw.status || "offen",
+    origin: raw.origin === "manuell" ? "manuell" : "ki",
     sourceSessionId: raw.sourceSessionId || "",
     sourceDate: raw.sourceDate || "",
+    resolvedAt: raw.resolvedAt || "",
+    resolvedSessionId: raw.resolvedSessionId || "",
     createdAt: raw.createdAt || new Date().toISOString(),
     lastSeenAt: raw.lastSeenAt || raw.createdAt || new Date().toISOString()
   };
