@@ -15,6 +15,7 @@ Stand: 2026-05-21
 ## Technisch
 - Server liest das aktive Modell pro Anfrage aus `data/ki-modell.txt` (überlebt App-Updates), Allowlist `{qwen2.5:3b, qwen2.5:7b}`, Fallback `qwen2.5:3b`.
 - `/api/structure-status` meldet das aktive Modell im Feld `model`.
+- `available` ist nur `true`, wenn das aktive Modell auch in Ollama installiert ist; eine veraltete/manuell gesetzte Modell-Datei zeigt die KI nicht fälschlich als bereit.
 - KI-Ausgaben müssen weiterhin fachlich geprüft werden; qwen2.5:7b ist deutlich langsamer als qwen2.5:3b.
 
 ## Deploy-Dateien (Release-ZIP)

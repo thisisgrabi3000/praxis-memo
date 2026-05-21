@@ -120,10 +120,20 @@ def transcribe_audio(audio_bytes: bytes, content_type: str) -> str:
 
 # ---------- Ollama proxy ----------
 
-def ollama_available() -> bool:
+def ollama_available(model: str | None = None) -> bool:
     try:
         with urllib.request.urlopen(f"{OLLAMA_BASE}/api/tags", timeout=2) as resp:
-            return resp.status == 200
+            if resp.status != 200:
+                return False
+            if not model:
+                return True
+            payload = json.loads(resp.read().decode("utf-8"))
+            installed = {
+                str(item.get("name") or item.get("model") or "").strip()
+                for item in payload.get("models", [])
+                if isinstance(item, dict)
+            }
+            return model in installed
     except Exception:
         return False
 
@@ -454,7 +464,8 @@ class PraxisMemoHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/structure-status":
-            self.send_json(200, {"available": ollama_available(), "mode": "local", "model": active_model()})
+            model = active_model()
+            self.send_json(200, {"available": ollama_available(model), "mode": "local", "model": model})
             return
 
         self.serve_static(path)

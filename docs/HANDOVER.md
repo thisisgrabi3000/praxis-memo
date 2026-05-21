@@ -11,6 +11,7 @@ Kontext: Lokale Web-App für eine Psychotherapeutin (Miriam), entwickelt auf mac
 
 - `data/ki-modell.txt` (pro PC, überlebt App-Updates, da `data/` nicht überschrieben wird) bestimmt das Strukturierungsmodell.
 - Server: `active_model()` liest die Datei pro `/api/structure`-Anfrage, Allowlist `{qwen2.5:3b, qwen2.5:7b}`, Fallback `qwen2.5:3b`. `/api/structure-status` meldet zusätzlich `model`.
+- Härtetest-Fix: `/api/structure-status` meldet `available: true` nur, wenn das aktive Modell auch in `ollama /api/tags` installiert ist. Ein manuell/stale gesetztes `qwen2.5:7b` ohne installiertes Modell zeigt die KI dadurch nicht mehr fälschlich als bereit.
 - Frontend: KI-Status zeigt das aktive Modell an („KI bereit (lokal, qwen2.5:7b)").
 - `Besseres Modell installieren.bat` (Hard-Block <16 GB RAM, `ollama pull qwen2.5:7b`, aktiviert nur nach erfolgreichem Pull) und `Schnelles Modell (3b) zurueck.bat` (Rückfahrkarte).
 - `Paket erstellen.bat` und Release-ZIP enthalten beide neuen Bats.
