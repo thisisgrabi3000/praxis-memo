@@ -812,13 +812,14 @@ function renderOpenPoints(patient) {
     ? `<span class="src self">selbst ${escapeHtml(formatDateShort(item.sourceDate))}</span>`
     : `<span class="src">aus Sitzung ${escapeHtml(formatDateShort(item.sourceDate))}</span>`;
   const openHtml = open.map(({ item }) => {
+    const id = escapeHtml(item.id);
     const suggest = suggestions.has(item.id)
-      ? `<div class="resolve-suggest" data-suggest="${item.id}">Scheint erledigt — stimmt das?
-           <button type="button" class="mini-yes" data-resolve="${item.id}">Ja, abhaken</button>
-           <button type="button" class="mini-no" data-dismiss="${item.id}">Nein</button></div>`
+      ? `<div class="resolve-suggest" data-suggest="${id}">Scheint erledigt — stimmt das?
+           <button type="button" class="mini-yes" data-resolve="${id}">Ja, abhaken</button>
+           <button type="button" class="mini-no" data-dismiss="${id}">Nein</button></div>`
       : "";
     return `<div class="open-item${suggestions.has(item.id) ? " has-suggest" : ""}">
-        <button type="button" class="check-box" data-resolve="${item.id}" aria-label="Abhaken"></button>
+        <button type="button" class="check-box" data-resolve="${id}" aria-label="Abhaken"></button>
         <span class="open-text">${escapeHtml(item.text)} ${originLabel(item)}</span>
       </div>${suggest}`;
   }).join("");
