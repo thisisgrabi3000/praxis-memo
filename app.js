@@ -739,9 +739,26 @@ function renderHistoryBook(patient) {
     const date = `<span class="book-date">${escapeHtml(formatDateShort(e.date))}</span>`;
     if (e.type === "session") {
       const s = e.session;
-      return `<div class="book-entry book-session">${date}
-        <strong>${escapeHtml(s.status === "Geprüft" ? "Sitzung" : (s.status || "Sitzung"))}${s.focus ? ` · ${escapeHtml(clip(s.focus, 60))}` : ""}</strong>
-        <p>${escapeHtml(clip(s.summary?.core || s.summary?.agreement || "", 160))}</p></div>`;
+      const sid = escapeHtml(s.id);
+      // Archivierte Sitzung aufklappbar + rückwirkend editierbar (Felder schreiben direkt
+      // via data-session-summary/-field). Re-Prüfen hält die Vorversion als Revision.
+      return `<details class="book-entry book-session session-item">
+        <summary class="session-summary">${date}
+          <strong>${escapeHtml(s.focus ? clip(s.focus, 56) : "Sitzung")}</strong>
+          <span class="mini-status">${escapeHtml(s.status || "")}</span>
+          ${s.revisions?.length ? `<span class="mini-status">${s.revisions.length} frühere Version${s.revisions.length === 1 ? "" : "en"}</span>` : ""}
+        </summary>
+        <div class="session-fields">
+          <label class="field"><span>Kernpunkte</span>
+            <textarea data-session-id="${sid}" data-session-summary="core" rows="3">${escapeHtml(s.summary?.core || "")}</textarea></label>
+          <label class="field important-field"><span>Absprachen</span>
+            <textarea data-session-id="${sid}" data-session-summary="agreement" rows="3">${escapeHtml(s.summary?.agreement || "")}</textarea></label>
+          <label class="field"><span>Offen</span>
+            <textarea data-session-id="${sid}" data-session-summary="open" rows="3">${escapeHtml(s.summary?.open || "")}</textarea></label>
+          <label class="field session-transcript"><span>Transkript</span>
+            <textarea data-session-id="${sid}" data-session-field="transcript" rows="4">${escapeHtml(s.transcript || "")}</textarea></label>
+        </div>
+      </details>`;
     }
     if (e.type === "added") {
       return `<div class="book-entry book-added">${date}<p>➕ Offener Punkt ergänzt: „${escapeHtml(e.item.text)}"</p></div>`;
