@@ -17,4 +17,9 @@ assert.strictEqual(item.text, "Schlaf klären", "Text unverändert");
 
 assert.strictEqual(app.resolveMemoryItem(patient, "nope"), false);
 
+// Idempotenz: bereits erledigte Punkte nicht erneut abhaken/überschreiben.
+const reResolve = app.resolveMemoryItem(patient, "m1", { sessionId: "s-3" });
+assert.strictEqual(reResolve, false, "Bereits erledigt => false (idempotent)");
+assert.strictEqual(item.resolvedSessionId, "s-2", "resolvedSessionId nicht überschrieben");
+
 console.log("RESULT: ALL OK");
