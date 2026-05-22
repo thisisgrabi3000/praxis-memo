@@ -18,4 +18,15 @@ assert.strictEqual(patient.memory.openQuestions[0].status, "offen", "kein Auto-A
 assert.deepStrictEqual([...app.matchResolvedSuggestions(patient, undefined)], []);
 assert.deepStrictEqual([...app.matchResolvedSuggestions(patient, [])], []);
 
+// Abgleich über alle Eimer, nicht nur openQuestions; erledigte werden nicht vorgeschlagen.
+const multi = app.normalizePatient({
+  id: "P-2",
+  memory: {
+    agreements: [{ id: "a1", text: "Tagebuch führen", status: "offen" }],
+    openQuestions: [{ id: "o1", text: "Schon erledigt", status: "erledigt" }]
+  }
+});
+const multiIds = app.matchResolvedSuggestions(multi, ["tagebuch führen", "schon erledigt"]);
+assert.deepStrictEqual([...multiIds], ["a1"], "Treffer im agreements-Eimer, erledigter ausgeschlossen");
+
 console.log("RESULT: ALL OK");
