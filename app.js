@@ -955,6 +955,28 @@ function resolveMemoryItem(patient, itemId, { sessionId = "" } = {}) {
   return true;
 }
 
+function addOpenPoint(patient, rawText) {
+  const text = normalizeMemoryText(rawText);
+  if (!text) return null;
+  patient.memory = createMemoryState(patient.memory || {});
+  const now = new Date().toISOString();
+  const item = {
+    id: makeId("mem"),
+    text,
+    status: "offen",
+    origin: "manuell",
+    sourceSessionId: "",
+    sourceDate: todayIso(),
+    resolvedAt: "",
+    resolvedSessionId: "",
+    createdAt: now,
+    lastSeenAt: now
+  };
+  patient.memory.openQuestions.unshift(item);
+  patient.memory.openQuestions = patient.memory.openQuestions.slice(0, 30);
+  return item;
+}
+
 function updatePatientMemoryFromSession(patient, session) {
   if (!patient || !session) return;
   const summary = session.summary || {};
