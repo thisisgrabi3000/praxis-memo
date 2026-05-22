@@ -1,11 +1,30 @@
 # Praxis Memo — Übergabedokument
 
-Letzte Aktualisierung: 2026-05-21  
+Letzte Aktualisierung: 2026-05-22  
 Kontext: Lokale Web-App für eine Psychotherapeutin (Miriam), entwickelt auf macOS, Zielplattform Windows-PC im Praxisbetrieb.
 
 ---
 
 ## 0. Änderungsprotokoll
+
+### 2026-05-22 — Verlaufsbuch & abhakbare offene Punkte (Release v1.0.8)
+
+- Frontend: Schritt `Anknüpfen` zeigt jetzt ein chronologisches **Verlaufsbuch** (`buildHistoryBook()` leitet datierte Ereignisse aus Sitzungen + Register ab) neben einer **„Noch offen"-Liste** (`renderOpenPoints()`).
+- Offene Punkte sind **abhakbar** (`resolveMemoryItem()` — append-only, setzt `status=erledigt` + `resolvedAt`) und **selbst ergänzbar** (`addOpenPoint()` — `origin: manuell`).
+- KI-Vorschlag „scheint erledigt": Server-Strukturierung liefert zusätzlich ein `resolved`-Array; `matchResolvedSuggestions()` gleicht es gegen offene Punkte ab. **Nie automatisch angewendet** — nur Vorschlag mit Pflicht-Bestätigung (`patient.resolvedSuggestions`).
+- Datenmodell: Register-Einträge haben neu `origin`, `resolvedAt`, `resolvedSessionId` (`normalizeMemoryItem` migriert Altbestand defaultsicher).
+- Folgetermin-Erinnerung: `approveCurrent()` fragt via `hasFutureFollowUp()` nach, wenn kein zukünftiger Termin gesetzt ist (übergehbar).
+- Sicherheit: Register-IDs werden in HTML-Attributen escaped.
+- Spec/Plan: `docs/superpowers/specs/2026-05-21-verlaufsbuch-design.md`, `docs/superpowers/plans/2026-05-21-verlaufsbuch.md`.
+
+**Verifikation am 2026-05-22:**
+- Logik-Tests grün: `test_memory_model`, `test_memory_resolve`, `test_memory_add`, `test_history_book`, `test_resolve_suggestions`, `test_followup_reminder`, `test_patient_export`.
+- `node --check app.js`, `python3 -m py_compile praxis_memo_server.py`.
+- UI-Smoketest in isolierter `file://`-Sandbox: Verlaufsbuch, Abhaken (inkl. Datum + Verschiebung in „erledigt"), Hinzufügen, KI-Vorschlag bestätigen — alle korrekt. (Wichtig: keine zustandsändernde Verifikation gegen die laufende App mit echten `data/`-Beständen, da `savePatients()`→`queueServerSave()` zurückschreibt.)
+
+**Für Claude beim Deploy (v1.0.8):**
+- Geänderte Deploy-Dateien: `app.js`, `index.html`, `styles.css`, `praxis_memo_server.py` (keine neuen Runtime-Dateien → ZIP-Dateiliste unverändert). Plus Doku/Tests im Repo-Commit: `docs/HANDOVER.md`, `docs/release-notes-v1.0.8.md`, neue `tests/test_*.js`, `tests/helpers/load-app.js`.
+- `VERSION` lokal auf `1.0.8` setzen und ins ZIP packen; Mechanik wie v1.0.7 (Branch→ff main→push→`gh release create v1.0.8 praxis-memo-app.zip --latest`).
 
 ### 2026-05-21 — Oberfläche vereinfacht + Miriam-Ablaufplan
 
