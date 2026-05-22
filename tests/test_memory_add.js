@@ -15,4 +15,9 @@ assert.strictEqual(patient.memory.openQuestions[0].id, item.id, "in openQuestion
 assert.strictEqual(app.addOpenPoint(patient, "   "), null);
 assert.strictEqual(patient.memory.openQuestions.length, 1);
 
+// Deckelung bei 30 Einträgen.
+const capped = app.normalizePatient({ id: "P-2" });
+for (let i = 0; i < 35; i++) app.addOpenPoint(capped, `Punkt ${i}`);
+assert.strictEqual(capped.memory.openQuestions.length, 30, "auf 30 gedeckelt");
+
 console.log("RESULT: ALL OK");
