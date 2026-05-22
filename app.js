@@ -935,6 +935,26 @@ function upsertMemoryItem(patient, bucket, text, session) {
   patient.memory[bucket] = list.slice(0, 30);
 }
 
+const MEMORY_BUCKETS = ["risks", "sensitiveTopics", "protectiveFactors", "openQuestions", "agreements"];
+
+function findMemoryItem(patient, itemId) {
+  for (const bucket of MEMORY_BUCKETS) {
+    const item = (patient.memory?.[bucket] || []).find((entry) => entry.id === itemId);
+    if (item) return item;
+  }
+  return null;
+}
+
+function resolveMemoryItem(patient, itemId, { sessionId = "" } = {}) {
+  const item = findMemoryItem(patient, itemId);
+  if (!item || item.status === "erledigt") return false;
+  // Append-only: nur Resolved-Felder ergänzen, Text/Quelle bleiben unangetastet.
+  item.status = "erledigt";
+  item.resolvedAt = new Date().toISOString();
+  item.resolvedSessionId = sessionId || patient.currentSessionId || "";
+  return true;
+}
+
 function updatePatientMemoryFromSession(patient, session) {
   if (!patient || !session) return;
   const summary = session.summary || {};
