@@ -56,6 +56,7 @@ function createEmptyPatient(uid, id) {
     memory: createMemoryState(),
     currentSessionId: makeId("session"),
     pendingStructure: null,
+    resolvedSuggestions: [],
     sessions: []
   };
 }
@@ -111,6 +112,7 @@ function normalizePatient(raw) {
     memory: createMemoryState(raw.memory || {}),
     currentSessionId: raw.currentSessionId || makeId("session"),
     pendingStructure: normalizePendingStructure(raw.pendingStructure),
+    resolvedSuggestions: Array.isArray(raw?.resolvedSuggestions) ? raw.resolvedSuggestions : [],
     sessions: Array.isArray(raw.sessions) ? raw.sessions.map(normalizeSession) : []
   };
 }
@@ -977,6 +979,22 @@ function addOpenPoint(patient, rawText) {
   return item;
 }
 
+// Gleicht die KI-Vorschläge (resolved-Texte) gegen offene Register-Einträge ab.
+// Reiner Abgleich: gibt nur Treffer-IDs zurück, ändert NICHTS (Bestätigung erfolgt separat).
+function matchResolvedSuggestions(patient, resolvedTexts) {
+  if (!Array.isArray(resolvedTexts) || !resolvedTexts.length) return [];
+  const wanted = new Set(resolvedTexts.map((t) => normalizeMemoryText(t).toLowerCase()).filter(Boolean));
+  const ids = [];
+  for (const bucket of MEMORY_BUCKETS) {
+    for (const item of patient.memory?.[bucket] || []) {
+      if (item.status !== "erledigt" && wanted.has(normalizeMemoryText(item.text).toLowerCase())) {
+        ids.push(item.id);
+      }
+    }
+  }
+  return ids;
+}
+
 function updatePatientMemoryFromSession(patient, session) {
   if (!patient || !session) return;
   const summary = session.summary || {};
@@ -1772,6 +1790,8 @@ async function structureTranscript() {
       }
     }
     applyStructuredResult(target, parsed, { forceOverwrite: allowOverwrite });
+    // KI-Vorschlag „scheint erledigt": nur als Vorschlag merken, niemals automatisch anwenden.
+    target.resolvedSuggestions = matchResolvedSuggestions(target, parsed.resolved);
 
     savePatients();
 
