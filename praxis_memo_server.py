@@ -198,13 +198,17 @@ def _structure_messages(transcript: str, patient_id: str = "") -> list:
         "WICHTIG: Stelle KEINE Diagnosen und triff KEINE Therapieentscheidungen. Halte klar "
         "auseinander, was der Patient berichtet, was als offene Frage/Hypothese formuliert ist, "
         "was vereinbart wurde und welche Risiken/Schutzfaktoren beobachtet werden sollen. "
-        "Unsicherheit muss als Unsicherheit erhalten bleiben.\n\n"
+        "Unsicherheit muss als Unsicherheit erhalten bleiben.\n"
+        "WICHTIG: In 'resolved' NUR Punkte aufnehmen, die wörtlich aus den bereits offenen "
+        "Punkten im Kontext stammen und in dieser Nachnotiz klar behandelt wurden. Im Zweifel "
+        "leer lassen — niemals neue Punkte erfinden.\n\n"
         "Antworte ausschließlich mit einem JSON-Objekt (kein Text davor oder danach):\n"
         "{\n"
         '  "core": "Kernpunkte und wichtigste Themen dieser Sitzung in 2-3 Sätzen",\n'
         '  "agreement": "Konkrete Vereinbarungen und Aufgaben des Patienten bis zum nächsten Termin",\n'
         '  "open": "Noch offene Fragen und Themen, die weiter beobachtet werden müssen",\n'
-        '  "watch": "Beobachtungsfokus für den nächsten Termin — mögliche Warnsignale, Ressourcen, offene Klärungen"\n'
+        '  "watch": "Beobachtungsfokus für den nächsten Termin — mögliche Warnsignale, Ressourcen, offene Klärungen",\n'
+        '  "resolved": ["Wörtlicher Text bereits offener Punkte aus dem mitgelieferten Kontext, die in dieser Nachnotiz erkennbar erledigt/behandelt wurden — leere Liste, wenn keiner"]\n'
         "}"
     )
     return [
