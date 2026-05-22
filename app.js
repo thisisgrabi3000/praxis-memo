@@ -372,6 +372,11 @@ const deletePatientButton = document.querySelector("#deletePatientButton");
 const quickPrep = document.querySelector("#quickPrep");
 const sessionHistory = document.querySelector("#sessionHistory");
 const sessionCountBadge = document.querySelector("#sessionCountBadge");
+const historyBook = document.querySelector("#historyBook");
+const openPoints = document.querySelector("#openPoints");
+const openCountBadge = document.querySelector("#openCountBadge");
+const openAddForm = document.querySelector("#openAddForm");
+const openAddInput = document.querySelector("#openAddInput");
 const kiStatus = document.querySelector("#kiStatus");
 const lengthWarning = document.querySelector("#lengthWarning");
 const toast = document.querySelector("#toast");
@@ -500,7 +505,8 @@ function renderAll() {
   updateTranscriptLengthWarning(patient.transcript);
   renderStorageStatus();
   renderQuickPrep(patient);
-  renderSessionHistory(patient);
+  renderHistoryBook(patient);
+  renderOpenPoints(patient);
   renderPatients();
   setActiveStep(activeStep);
 }
@@ -518,6 +524,9 @@ function renderEmptyState() {
   if (quickPrep) quickPrep.innerHTML = "";
   if (sessionHistory) sessionHistory.innerHTML = "";
   if (sessionCountBadge) sessionCountBadge.textContent = "0 Einträge";
+  if (historyBook) historyBook.innerHTML = "";
+  if (openPoints) openPoints.innerHTML = "";
+  if (openCountBadge) openCountBadge.textContent = "0 offen";
 }
 
 // ---- Inhaltliche Suche durch Patientendaten und archivierte Sitzungen ----
@@ -759,6 +768,67 @@ function renderSessionHistory(patient) {
         </label>
       </div>
     </details>`).join("");
+}
+
+function renderHistoryBook(patient) {
+  if (!historyBook) return;
+  const events = buildHistoryBook(patient);
+  if (sessionCountBadge) {
+    const sessions = (patient.sessions || []).length;
+    sessionCountBadge.textContent = `${sessions} ${sessions === 1 ? "Eintrag" : "Einträge"}`;
+  }
+  if (!events.length) {
+    historyBook.innerHTML = `<p class="empty-history"><strong>Noch kein Verlauf</strong><span>Nach der ersten geprüften Sitzung entsteht hier das Buch.</span></p>`;
+    return;
+  }
+  historyBook.innerHTML = events.map((e) => {
+    const date = `<span class="book-date">${escapeHtml(formatDateShort(e.date))}</span>`;
+    if (e.type === "session") {
+      const s = e.session;
+      return `<div class="book-entry book-session">${date}
+        <strong>${escapeHtml(s.status === "Geprüft" ? "Sitzung" : (s.status || "Sitzung"))}${s.focus ? ` · ${escapeHtml(clip(s.focus, 60))}` : ""}</strong>
+        <p>${escapeHtml(clip(s.summary?.core || s.summary?.agreement || "", 160))}</p></div>`;
+    }
+    if (e.type === "added") {
+      return `<div class="book-entry book-added">${date}<p>➕ Offener Punkt ergänzt: „${escapeHtml(e.item.text)}"</p></div>`;
+    }
+    return `<div class="book-entry book-resolved">${date}<p>✓ Abgehakt: <span class="done-txt">${escapeHtml(e.item.text)}</span></p></div>`;
+  }).join("");
+}
+
+function renderOpenPoints(patient) {
+  if (!openPoints) return;
+  const suggestions = new Set(Array.isArray(patient.resolvedSuggestions) ? patient.resolvedSuggestions : []);
+  const open = [];
+  const done = [];
+  for (const bucket of MEMORY_BUCKETS) {
+    for (const item of patient.memory?.[bucket] || []) {
+      if (!item.text) continue;
+      (item.status === "erledigt" ? done : open).push({ item, bucket });
+    }
+  }
+  if (openCountBadge) openCountBadge.textContent = `${open.length} offen`;
+  const originLabel = (item) => item.origin === "manuell"
+    ? `<span class="src self">selbst ${escapeHtml(formatDateShort(item.sourceDate))}</span>`
+    : `<span class="src">aus Sitzung ${escapeHtml(formatDateShort(item.sourceDate))}</span>`;
+  const openHtml = open.map(({ item }) => {
+    const suggest = suggestions.has(item.id)
+      ? `<div class="resolve-suggest" data-suggest="${item.id}">Scheint erledigt — stimmt das?
+           <button type="button" class="mini-yes" data-resolve="${item.id}">Ja, abhaken</button>
+           <button type="button" class="mini-no" data-dismiss="${item.id}">Nein</button></div>`
+      : "";
+    return `<div class="open-item${suggestions.has(item.id) ? " has-suggest" : ""}">
+        <button type="button" class="check-box" data-resolve="${item.id}" aria-label="Abhaken"></button>
+        <span class="open-text">${escapeHtml(item.text)} ${originLabel(item)}</span>
+      </div>${suggest}`;
+  }).join("");
+  const doneHtml = done.length
+    ? `<details class="done-fold"><summary>${done.length} erledigt</summary>${done.map(({ item }) =>
+        `<div class="open-item done"><span class="check-box done"></span>
+         <span class="open-text done-txt">${escapeHtml(item.text)}</span>
+         <span class="meta">✓ ${escapeHtml(formatDateShort((item.resolvedAt || "").slice(0, 10)))}</span></div>`).join("")}</details>`
+    : "";
+  openPoints.innerHTML = (openHtml || `<p class="empty-history"><span>Keine offenen Punkte.</span></p>`) + doneHtml;
 }
 
 function setActiveStep(step) {
@@ -2123,6 +2193,39 @@ quickPrep?.addEventListener("click", (event) => {
   if (!event.target.closest("[data-open-prep]")) return;
   activeStep = "prep";
   setActiveStep("prep");
+});
+
+openPoints?.addEventListener("click", (event) => {
+  const patient = getPatient();
+  if (!patient) return;
+  const resolveId = event.target.closest("[data-resolve]")?.dataset.resolve;
+  if (resolveId) {
+    if (resolveMemoryItem(patient, resolveId)) {
+      patient.resolvedSuggestions = (patient.resolvedSuggestions || []).filter((id) => id !== resolveId);
+      savePatients();
+      renderAll();
+      showToast("Punkt abgehakt.");
+    }
+    return;
+  }
+  const dismissId = event.target.closest("[data-dismiss]")?.dataset.dismiss;
+  if (dismissId) {
+    patient.resolvedSuggestions = (patient.resolvedSuggestions || []).filter((id) => id !== dismissId);
+    savePatients();
+    renderAll();
+  }
+});
+
+openAddForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const patient = getPatient();
+  if (!patient) return;
+  if (addOpenPoint(patient, openAddInput.value)) {
+    openAddInput.value = "";
+    savePatients();
+    renderAll();
+    showToast("Offener Punkt ergänzt.");
+  }
 });
 
 document.querySelectorAll(".workflow-step").forEach((btn) => {

@@ -293,11 +293,26 @@
               <div class="panel-head">
                 <div>
                   <p class="eyebrow">Archiv</p>
-                  <h3>Verlauf</h3>
+                  <h3>Verlaufsbuch</h3>
                 </div>
                 <span class="status-badge" id="sessionCountBadge">0 Einträge</span>
               </div>
-              <div class="session-timeline" id="sessionHistory" aria-label="Archivierte Sitzungen"></div>
+              <div class="history-book" id="historyBook" aria-label="Chronologisches Verlaufsbuch"></div>
+            </article>
+
+            <article class="panel open-points-panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Aktuell</p>
+                  <h3>Noch offen</h3>
+                </div>
+                <span class="status-badge" id="openCountBadge">0 offen</span>
+              </div>
+              <div class="open-points" id="openPoints" aria-label="Offene Punkte"></div>
+              <form class="open-add" id="openAddForm">
+                <input type="text" id="openAddInput" placeholder="Neuen offenen Punkt eintragen …" aria-label="Neuen offenen Punkt eintragen" />
+                <button type="submit" class="soft-action">+ Hinzufügen</button>
+              </form>
             </article>
           </div>
         </section>
