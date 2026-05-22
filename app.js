@@ -123,6 +123,7 @@ function normalizePendingStructure(raw) {
     id: raw.id || makeId("pending"),
     createdAt: raw.createdAt || new Date().toISOString(),
     overwriteLabels: Array.isArray(raw.overwriteLabels) ? raw.overwriteLabels : [],
+    resolved: Array.isArray(raw.resolved) ? raw.resolved : [],
     result: {
       core: String(raw.result.core || ""),
       agreement: String(raw.result.agreement || ""),
@@ -370,7 +371,6 @@ const restoreInput = document.querySelector("#restoreInput");
 const addPatientButton = document.querySelector("#addPatientButton");
 const deletePatientButton = document.querySelector("#deletePatientButton");
 const quickPrep = document.querySelector("#quickPrep");
-const sessionHistory = document.querySelector("#sessionHistory");
 const sessionCountBadge = document.querySelector("#sessionCountBadge");
 const historyBook = document.querySelector("#historyBook");
 const openPoints = document.querySelector("#openPoints");
@@ -522,7 +522,6 @@ function renderEmptyState() {
   processingStatus.textContent = "";
   updateTranscriptLengthWarning("");
   if (quickPrep) quickPrep.innerHTML = "";
-  if (sessionHistory) sessionHistory.innerHTML = "";
   if (sessionCountBadge) sessionCountBadge.textContent = "0 Einträge";
   if (historyBook) historyBook.innerHTML = "";
   if (openPoints) openPoints.innerHTML = "";
@@ -723,51 +722,6 @@ function renderQuickPrep(patient) {
         <strong>${escapeHtml(caution || "Keine Warnhinweise dokumentiert")}</strong>
       </article>
     </div>`;
-}
-
-function renderSessionHistory(patient) {
-  if (!sessionHistory) return;
-  const sessions = sortSessions(patient.sessions || []);
-  if (sessionCountBadge) {
-    sessionCountBadge.textContent = `${sessions.length} ${sessions.length === 1 ? "Eintrag" : "Einträge"}`;
-  }
-
-  if (!sessions.length) {
-    sessionHistory.innerHTML = `
-      <div class="empty-history">
-        <strong>Noch kein archivierter Eintrag</strong>
-        <span>Nach dem Prüfen wird die Sitzung hier als Verlauf gespeichert.</span>
-      </div>`;
-    return;
-  }
-
-  sessionHistory.innerHTML = sessions.map((session, i) => `
-    <details class="session-item"${i === 0 ? " open" : ""}>
-      <summary class="session-summary">
-        <span class="session-date">${escapeHtml(formatDateShort(session.date))}</span>
-        <strong>${escapeHtml(clip(session.focus, 58))}</strong>
-        <span class="mini-status">${escapeHtml(session.status)}</span>
-        ${session.revisions?.length ? `<span class="mini-status">${session.revisions.length} frühere Version${session.revisions.length === 1 ? "" : "en"}</span>` : ""}
-      </summary>
-      <div class="session-fields">
-        <label class="field">
-          <span>Kernpunkte</span>
-          <textarea data-session-id="${escapeHtml(session.id)}" data-session-summary="core" rows="3">${escapeHtml(session.summary.core)}</textarea>
-        </label>
-        <label class="field important-field">
-          <span>Absprachen</span>
-          <textarea data-session-id="${escapeHtml(session.id)}" data-session-summary="agreement" rows="3">${escapeHtml(session.summary.agreement)}</textarea>
-        </label>
-        <label class="field">
-          <span>Offen</span>
-          <textarea data-session-id="${escapeHtml(session.id)}" data-session-summary="open" rows="3">${escapeHtml(session.summary.open)}</textarea>
-        </label>
-        <label class="field session-transcript">
-          <span>Transkript</span>
-          <textarea data-session-id="${escapeHtml(session.id)}" data-session-field="transcript" rows="4">${escapeHtml(session.transcript)}</textarea>
-        </label>
-      </div>
-    </details>`).join("");
 }
 
 function renderHistoryBook(patient) {
@@ -1730,6 +1684,7 @@ function storePendingStructure(target, parsed, overwriteLabels) {
     id: makeId("pending"),
     createdAt: new Date().toISOString(),
     overwriteLabels,
+    resolved: Array.isArray(parsed.resolved) ? parsed.resolved : [],
     result: {
       core: parsed.core || "",
       agreement: parsed.agreement || "",
@@ -1759,6 +1714,8 @@ function resolvePendingStructure(patient) {
 
   if (shouldApply) {
     applyStructuredResult(patient, pending.result, { forceOverwrite: true });
+    // KI-Vorschlag „scheint erledigt" auch für die im Hintergrund abgeschlossene Strukturierung.
+    patient.resolvedSuggestions = matchResolvedSuggestions(patient, pending.resolved);
     showToast("Ausstehende Strukturierung übernommen. Bitte fachlich prüfen.");
   } else {
     showToast("Ausstehende Strukturierung verworfen. Bestehende Felder bleiben unverändert.");

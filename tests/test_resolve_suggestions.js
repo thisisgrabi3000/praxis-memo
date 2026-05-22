@@ -29,4 +29,13 @@ const multi = app.normalizePatient({
 const multiIds = app.matchResolvedSuggestions(multi, ["tagebuch führen", "schon erledigt"]);
 assert.deepStrictEqual([...multiIds], ["a1"], "Treffer im agreements-Eimer, erledigter ausgeschlossen");
 
+// Pending-Strukturierung (Hintergrund-Abschluss) bewahrt das resolved-Array über normalize.
+const pending = app.normalizePendingStructure({
+  result: { core: "c", agreement: "a", open: "o", watch: "w" },
+  resolved: ["Schlafprobleme klären"]
+});
+assert.deepStrictEqual([...pending.resolved], ["Schlafprobleme klären"], "resolved bleibt erhalten");
+const pendingNoResolved = app.normalizePendingStructure({ result: { core: "c" } });
+assert.deepStrictEqual([...pendingNoResolved.resolved], [], "fehlendes resolved => leeres Array");
+
 console.log("RESULT: ALL OK");
