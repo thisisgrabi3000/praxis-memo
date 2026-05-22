@@ -1022,6 +1022,28 @@ function buildMemoryContext(patient) {
     : "";
 }
 
+// Leitet das Verlaufsbuch deterministisch aus Sitzungen + Register-Zeitstempeln ab.
+// Gibt nach Datum aufsteigend sortierte Ereignisse zurück (kein eigener Speicher).
+function buildHistoryBook(patient) {
+  const events = [];
+  for (const s of patient.sessions || []) {
+    events.push({ type: "session", date: s.date || "", session: s, sortKey: 0 });
+  }
+  for (const bucket of MEMORY_BUCKETS) {
+    for (const item of patient.memory?.[bucket] || []) {
+      if (item.origin === "manuell" && item.sourceDate) {
+        events.push({ type: "added", date: item.sourceDate, bucket, item, sortKey: 1 });
+      }
+      if (item.status === "erledigt" && item.resolvedAt) {
+        events.push({ type: "resolved", date: item.resolvedAt.slice(0, 10), bucket, item, sortKey: 2 });
+      }
+    }
+  }
+  // Datum aufsteigend; am selben Tag: Sitzung (0) vor Ergänzung (1) vor Abhaken (2).
+  return events.sort((a, b) =>
+    (a.date || "").localeCompare(b.date || "") || a.sortKey - b.sortKey);
+}
+
 function renderMemoryBlock(patient) {
   if (!patient?.memory) return "";
   const sections = ["risks", "sensitiveTopics", "protectiveFactors", "openQuestions", "agreements"]
