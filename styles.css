@@ -1461,12 +1461,13 @@ textarea:focus {
 }
 
 .history-book { display: grid; gap: 8px; }
-.book-entry { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(246, 249, 251, 0.72); }
-.book-entry p { margin: 0; color: var(--stone); font-size: var(--text-body); line-height: 1.4; }
+.book-day { display: grid; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-left: 3px solid var(--forest); border-radius: var(--radius); background: rgba(246, 249, 251, 0.72); }
+.book-day-head { display: flex; gap: 8px; align-items: baseline; }
+.book-day-head strong { color: var(--moss); font-size: var(--text-label); }
 .book-date { font-weight: 740; color: var(--moss); font-size: var(--text-label); }
-.book-session { border-left: 3px solid var(--forest); }
-.book-resolved { border-left: 3px solid #2e7d52; }
-.book-added { border-left: 3px solid var(--moss); }
+.book-day .session-item { border: 0; padding: 0; background: transparent; }
+.book-change { margin: 0; color: var(--stone); font-size: var(--text-small); line-height: 1.4; overflow-wrap: anywhere; }
+.book-resolved-line { color: #2e7d52; }
 .done-txt { color: var(--stone); text-decoration: line-through; }
 .open-points { display: grid; gap: 6px; }
 .open-item { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px; border-radius: var(--radius); }

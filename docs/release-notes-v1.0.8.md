@@ -3,7 +3,8 @@
 Stand: 2026-05-22
 
 ## Neu
-- Im Schritt **Anknüpfen** gibt es jetzt ein chronologisches **Verlaufsbuch** (datierte Ereignisse: Sitzungen, ergänzte Punkte, abgehakte Punkte) neben einer lebenden **„Noch offen"-Liste**.
+- Im Schritt **Anknüpfen** gibt es jetzt ein chronologisches **Verlaufsbuch** neben einer lebenden **„Noch offen"-Liste**. Das Buch ist **pro Tag gebündelt** (ein Block je Termin, neueste oben): die Sitzung(en) des Tages plus kompakte Zeilen „✓ erledigt: …" / „➕ ergänzt: …". So wächst es pro Termin statt pro einzelnem Punkt.
+- Archivierte Sitzungen sind im Verlaufsbuch **aufklappbar und rückwirkend editierbar** (Kernpunkte/Absprachen/Offen/Transkript).
 - **Offene Punkte abhaken** mit einem Klick — mit Erledigt-Datum; der Haken erscheint datiert im Verlaufsbuch. Abgehakte Punkte werden nicht gelöscht, sondern als „erledigt" durchgestrichen und in einer ausklappbaren Liste aufbewahrt.
 - **Offene Punkte selbst hinzufügen** — Eingabezeile „+ Hinzufügen"; eigene Punkte tragen die Herkunft `selbst` mit Datum, KI-Punkte `aus Sitzung <Datum>`.
 - **KI-Vorschlag „scheint erledigt"**: Beim Strukturieren schlägt die KI vor, welche bereits offenen Punkte in der neuen Nachnotiz behandelt wurden. Der Vorschlag wird **nie automatisch angewendet** — er erscheint als „Scheint erledigt — stimmt das? [Ja, abhaken] [Nein]" und wird erst durch Bestätigung gesetzt.
