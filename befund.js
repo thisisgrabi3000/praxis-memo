@@ -64,6 +64,16 @@ function befundSectionText(section, sel) {
     .join("; ");
 }
 
+function befundFliesstext(catalog, selection) {
+  return catalog
+    .map((section) => {
+      const raw = befundSectionText(section, (selection || {})[section.id] || { normal: true, itemIds: [] });
+      const trimmed = raw.trim();
+      return trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
+    })
+    .join(" ");
+}
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { BEFUND_CATALOG, befundDefaultSelection, befundSectionText };
+  module.exports = { BEFUND_CATALOG, befundDefaultSelection, befundSectionText, befundFliesstext };
 }

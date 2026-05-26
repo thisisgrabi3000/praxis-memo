@@ -36,3 +36,20 @@ assert.strictEqual(B.befundSectionText(sec, { normal: false, itemIds: [] }),
   "Stimmung ausgeglichen, Antrieb unauffällig", "keine items → Normaltext");
 
 console.log("test_befund_engine TASK2 OK");
+
+// Default (alles normal) → alle Normaltexte, je mit '. ' getrennt, Punkt am Ende
+const full = B.befundFliesstext(B.BEFUND_CATALOG, B.befundDefaultSelection(B.BEFUND_CATALOG));
+assert.strictEqual(
+  full,
+  "Bewusstsein klar. allseits orientiert. Stimmung ausgeglichen, Antrieb unauffällig. " +
+  "keine Hinweise auf akute Suizidalität, glaubhafte Absprachefähigkeit.",
+  "Default-Fließtext = alle Normalbefunde, punktgetrennt"
+);
+// Eine Abweichung mischt sich ein
+const sel = B.befundDefaultSelection(B.BEFUND_CATALOG);
+sel.stimmung = { normal: false, itemIds: ["depressiv"] };
+const mixed = B.befundFliesstext(B.BEFUND_CATALOG, sel);
+assert.ok(mixed.includes("Stimmung niedergeschlagen."), "Abweichung im Fließtext enthalten");
+assert.ok(mixed.includes("Bewusstsein klar."), "übrige Sektionen bleiben Normalbefund");
+
+console.log("test_befund_engine TASK3 OK");
