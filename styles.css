@@ -18,17 +18,17 @@
   --amber: #8b6a37;
   --red: #9c4f45;
   --shadow: 0 24px 70px rgba(22, 50, 74, 0.08);
-  /* Seitenweite Flaechentöne: strukturelle Bereiche als helle Navyblau-Toene (--forest-Familie);
-     die vier Pruefen-Felder als dezente semantische Akzentflaechen (neutral/gruen/amber/warm). */
-  --surface-sidebar: #eef3f7;
-  --surface-topbar: #e7eef4;
-  --surface-panel: #f6f9fb;
-  --surface-prep: #eaf1f6;
-  --surface-book: #edf2f6;
-  --surface-core: #eef2f6;
-  --surface-agreement: #e9f2ec;
-  --surface-open: #f5f0e4;
-  --surface-watch: #f4ecec;
+  /* Seitenweite Flaechentöne: kraeftigere, klar unterscheidbare Toene in der Navyblau-/
+     Akzent-Familie der App (strukturelle Bereiche blau, die vier Pruefen-Felder semantisch). */
+  --surface-sidebar: #d7e4f0;
+  --surface-topbar: #cbddee;
+  --surface-panel: #e0ebf4;
+  --surface-prep: #cfe0ee;
+  --surface-book: #d6e4f0;
+  --surface-core: #d9e3ee;
+  --surface-agreement: #cae5d2;
+  --surface-open: #efe2bf;
+  --surface-watch: #eed3d3;
   --radius: 8px;
   --text-eyebrow: 11px;
   --text-label: 12px;
@@ -1593,11 +1593,26 @@ textarea:focus {
   overflow: hidden;
 }
 
-.befund-section[data-group="kognitiv"] { border-left: 3px solid #4a8ab0; }
-.befund-section[data-group="erscheinung"] { border-left: 3px solid #6da870; }
-.befund-section[data-group="vegetativ"] { border-left: 3px solid #a07050; }
-.befund-section[data-group="psychotisch"] { border-left: 3px solid #9060a0; }
-.befund-section[data-group="gefahr"] { border-left: 3px solid var(--red); }
+.befund-section[data-group="kognitiv"] { border-left: 4px solid #4a8ab0; background: #cfe0ef; }
+.befund-section[data-group="erscheinung"] { border-left: 4px solid #6da870; background: #cfe6d3; }
+.befund-section[data-group="vegetativ"] { border-left: 4px solid #a07050; background: #ecddc4; }
+.befund-section[data-group="psychotisch"] { border-left: 4px solid #9060a0; background: #ddd0e8; }
+.befund-section[data-group="gefahr"] { border-left: 4px solid var(--red); background: #ecd4d2; }
+
+/* Angehaktes Item klar in der App-Farbe (Navy) hervorheben — kein Orange */
+.befund-item { padding: 2px 7px; border-radius: 6px; }
+.befund-item:has(input:checked) {
+  background: rgba(22, 50, 74, 0.16);
+  font-weight: 600;
+  color: var(--forest);
+}
+
+/* Normalbefund-Button gruen, solange die Sektion unauffaellig ist (nichts angekreuzt, kein Freitext) */
+.befund-section:not(:has(.befund-cb:checked)):not(:has(.befund-freitext:not(:placeholder-shown))) .befund-normal-btn {
+  background: #2e7d52;
+  border-color: #2e7d52;
+  color: #fff;
+}
 
 .befund-summary {
   display: flex;
