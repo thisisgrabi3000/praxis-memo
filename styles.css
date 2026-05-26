@@ -18,7 +18,8 @@
   --amber: #8b6a37;
   --red: #9c4f45;
   --shadow: 0 24px 70px rgba(22, 50, 74, 0.08);
-  /* Seitenweite Flaechentöne, abgeleitet aus dem Navyblau (--forest) + gedaempften Akzenten */
+  /* Seitenweite Flaechentöne: strukturelle Bereiche als helle Navyblau-Toene (--forest-Familie);
+     die vier Pruefen-Felder als dezente semantische Akzentflaechen (neutral/gruen/amber/warm). */
   --surface-sidebar: #eef3f7;
   --surface-topbar: #e7eef4;
   --surface-panel: #f6f9fb;
@@ -837,11 +838,11 @@ body.no-patient .empty-workspace {
 
 .step-panel {
   display: none;
-  background: var(--surface-panel);
 }
 
 .step-panel.active {
   display: block;
+  background: var(--surface-panel);
 }
 
 .record-panel,
@@ -1166,10 +1167,8 @@ textarea:focus {
   background: var(--surface-core);
 }
 
-.summary-card.priority {
-  background: linear-gradient(135deg, rgba(226, 238, 247, 0.92), rgba(242, 248, 252, 0.92));
-}
-
+/* .priority-Karten (Absprachen/Offene Punkte) erhalten ihre Flaeche bewusst ueber die
+   per-Feld-Tints unten; die Priority-Betonung bleibt ueber den linken Rand am Textarea. */
 .summary-card:has(textarea[data-summary="agreement"]) { background: var(--surface-agreement); }
 .summary-card:has(textarea[data-summary="open"]) { background: var(--surface-open); }
 .summary-card:has(textarea[data-summary="watch"]) { background: var(--surface-watch); }
