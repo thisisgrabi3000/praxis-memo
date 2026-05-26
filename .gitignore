@@ -30,6 +30,9 @@ venv/
 dist/
 build/
 
+# --- Git Worktrees (isolierte Arbeitsbereiche) ---
+.worktrees/
+
 # --- Lokal-Configs ---
 *.local
 .env
