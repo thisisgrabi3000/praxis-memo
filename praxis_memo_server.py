@@ -30,7 +30,7 @@ MAX_AUDIO_BYTES = 50 * 1024 * 1024  # 50 MB hard cap
 
 # Only these front-end files are served statically. Patient data, logs, backups
 # and VCS metadata under the app root must never be reachable via the browser.
-STATIC_ALLOWLIST = {"index.html", "app.js", "styles.css"}
+STATIC_ALLOWLIST = {"index.html", "app.js", "befund.js", "styles.css"}
 
 WHISPER_MODEL_NAME = "base"
 OLLAMA_BASE = "http://127.0.0.1:11434"
