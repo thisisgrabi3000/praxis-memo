@@ -137,6 +137,10 @@
             <span>03</span>
             <strong>Anknüpfen</strong>
           </button>
+          <button class="workflow-step" type="button" data-step="befund">
+            <span>04</span>
+            <strong>Befund</strong>
+          </button>
         </nav>
 
         <section class="quick-prep" id="quickPrep" aria-label="Schnellblick für die nächste Sitzung"></section>
@@ -324,12 +328,15 @@
             </article>
           </div>
         </section>
+
+        <section class="step-panel" id="befundPanel" aria-label="Befund"></section>
       </main>
 
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+    <script src="befund.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

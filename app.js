@@ -380,6 +380,7 @@ const openPoints = document.querySelector("#openPoints");
 const openCountBadge = document.querySelector("#openCountBadge");
 const openAddForm = document.querySelector("#openAddForm");
 const openAddInput = document.querySelector("#openAddInput");
+const befundPanel = document.querySelector("#befundPanel");
 const kiStatus = document.querySelector("#kiStatus");
 const lengthWarning = document.querySelector("#lengthWarning");
 const toast = document.querySelector("#toast");
@@ -517,8 +518,187 @@ function renderAll() {
   renderQuickPrep(patient);
   renderHistoryBook(patient);
   renderOpenPoints(patient);
+  renderBefund(patient);
   renderPatients();
   setActiveStep(activeStep);
+}
+
+// ============================================================
+// BEFUND
+// ============================================================
+
+function renderBefund(patient) {
+  if (!befundPanel) return;
+  if (!patient) { befundPanel.innerHTML = ""; return; }
+
+  // Lazy-Initialisierung der Auswahl
+  if (!patient.befund) {
+    patient.befund = befundDefaultSelection(BEFUND_CATALOG);
+  }
+  const sel = patient.befund;
+  const fliesstext = befundFliesstext(BEFUND_CATALOG, sel);
+
+  // Welche <details> sind gerade offen? Merken, damit sie nach Re-Render offen bleiben.
+  const openIds = new Set();
+  befundPanel.querySelectorAll("details.befund-section[data-sid][open]").forEach((d) => {
+    openIds.add(d.dataset.sid);
+  });
+
+  const sectionsHtml = BEFUND_CATALOG.map((section) => {
+    const secSel = sel[section.id] || { normal: true, itemIds: [] };
+    const isNormal = secSel.normal && !(secSel.nichtErhebbar);
+    const marker = isNormal ? "" : ' <span class="befund-marker" aria-label="abweichend">&#x25CF;</span>';
+    const wasOpen = openIds.has(section.id) ? " open" : "";
+
+    const clustersHtml = section.clusters.map((cluster) => {
+      const freitextVal = (secSel.freitext || {})[cluster.id] || "";
+      const itemsHtml = cluster.items.map((item) => {
+        const checked = (secSel.itemIds || []).includes(item.id) ? " checked" : "";
+        const sid = escapeHtml(section.id);
+        const iid = escapeHtml(item.id);
+        return `<label class="befund-item"><input type="checkbox" class="befund-cb" data-sid="${sid}" data-iid="${iid}"${checked}> ${escapeHtml(item.label)}</label>`;
+      }).join("");
+      const cid = escapeHtml(cluster.id);
+      const sid = escapeHtml(section.id);
+      return `<div class="befund-cluster">
+        <span class="befund-cluster-label">${escapeHtml(cluster.label)}</span>
+        <div class="befund-items">${itemsHtml}</div>
+        <label class="befund-freitext-label">
+          <span class="befund-freitext-hint">Eigener Text</span>
+          <input type="text" class="befund-freitext" data-sid="${sid}" data-cid="${cid}" value="${escapeHtml(freitextVal)}" placeholder="Freitext …">
+        </label>
+      </div>`;
+    }).join("");
+
+    const sid = escapeHtml(section.id);
+    const groupAttr = escapeHtml(section.group);
+    return `<details class="befund-section" data-group="${groupAttr}" data-sid="${sid}"${wasOpen}>
+      <summary class="befund-summary">
+        <span class="befund-section-label">${escapeHtml(section.label)}${marker}</span>
+      </summary>
+      <div class="befund-section-body">
+        <button type="button" class="befund-normal-btn" data-sid="${sid}">Normalbefund</button>
+        ${clustersHtml}
+      </div>
+    </details>`;
+  }).join("");
+
+  befundPanel.innerHTML = `
+    <div class="befund-topbar">
+      <button type="button" class="soft-action befund-all-normal-btn">Alles unauffällig</button>
+      <div class="befund-preview-wrap">
+        <p class="befund-preview" id="befundPreview">${escapeHtml(fliesstext)}</p>
+      </div>
+      <button type="button" class="quiet-action befund-copy-btn" id="befundCopyBtn">Kopieren</button>
+    </div>
+    <div class="befund-sections">${sectionsHtml}</div>`;
+
+  // Events via Delegation auf befundPanel
+  befundPanel.addEventListener("click", handleBefundClick, { once: true });
+  befundPanel.addEventListener("change", handleBefundChange, { once: true });
+  befundPanel.addEventListener("input", handleBefundInput, { once: true });
+}
+
+function updateBefundPreview(patient) {
+  const preview = befundPanel && befundPanel.querySelector("#befundPreview");
+  if (preview) preview.textContent = befundFliesstext(BEFUND_CATALOG, patient.befund);
+}
+
+function handleBefundClick(event) {
+  if (!befundPanel) return;
+  // Re-attach listener for future clicks
+  befundPanel.addEventListener("click", handleBefundClick, { once: true });
+
+  const patient = getPatient();
+  if (!patient) return;
+
+  // Alles unauffaellig
+  if (event.target.closest(".befund-all-normal-btn")) {
+    patient.befund = befundSetAllNormal(BEFUND_CATALOG);
+    savePatients();
+    renderBefund(patient);
+    return;
+  }
+
+  // Normalbefund fuer eine Sektion
+  const normalBtn = event.target.closest(".befund-normal-btn");
+  if (normalBtn) {
+    const sid = normalBtn.dataset.sid;
+    patient.befund = befundSetNormal(patient.befund, sid);
+    savePatients();
+    renderBefund(patient);
+    return;
+  }
+
+  // Kopieren
+  if (event.target.closest(".befund-copy-btn")) {
+    const text = befundFliesstext(BEFUND_CATALOG, patient.befund);
+    navigator.clipboard.writeText(text).then(() => {
+      showToast("Befund-Fliesstext kopiert.");
+    }).catch(() => {
+      showToast("Kopieren fehlgeschlagen.");
+    });
+    return;
+  }
+}
+
+function handleBefundChange(event) {
+  if (!befundPanel) return;
+  befundPanel.addEventListener("change", handleBefundChange, { once: true });
+
+  const patient = getPatient();
+  if (!patient) return;
+
+  const cb = event.target.closest(".befund-cb");
+  if (cb) {
+    const sid = cb.dataset.sid;
+    const iid = cb.dataset.iid;
+    patient.befund = befundToggleItem(patient.befund, sid, iid);
+    savePatients();
+    // Marker in summary aktualisieren ohne vollstaendiges Re-Render (Details bleibt offen)
+    const detail = befundPanel.querySelector(`details.befund-section[data-sid="${CSS.escape(sid)}"]`);
+    const secSel = patient.befund[sid];
+    const isNormal = secSel.normal && !secSel.nichtErhebbar;
+    const markerEl = detail && detail.querySelector(".befund-marker");
+    const labelEl = detail && detail.querySelector(".befund-section-label");
+    if (labelEl) {
+      if (!isNormal && !markerEl) {
+        labelEl.insertAdjacentHTML("beforeend", ' <span class="befund-marker" aria-label="abweichend">&#x25CF;</span>');
+      } else if (isNormal && markerEl) {
+        markerEl.remove();
+      }
+    }
+    updateBefundPreview(patient);
+  }
+}
+
+function handleBefundInput(event) {
+  if (!befundPanel) return;
+  befundPanel.addEventListener("input", handleBefundInput, { once: true });
+
+  const patient = getPatient();
+  if (!patient) return;
+
+  const ft = event.target.closest(".befund-freitext");
+  if (ft) {
+    const sid = ft.dataset.sid;
+    const cid = ft.dataset.cid;
+    patient.befund = befundSetFreitext(patient.befund, sid, cid, ft.value);
+    savePatients();
+    const detail = befundPanel.querySelector(`details.befund-section[data-sid="${CSS.escape(sid)}"]`);
+    const secSel = patient.befund[sid];
+    const isNormal = secSel.normal && !secSel.nichtErhebbar;
+    const markerEl = detail && detail.querySelector(".befund-marker");
+    const labelEl = detail && detail.querySelector(".befund-section-label");
+    if (labelEl) {
+      if (!isNormal && !markerEl) {
+        labelEl.insertAdjacentHTML("beforeend", ' <span class="befund-marker" aria-label="abweichend">&#x25CF;</span>');
+      } else if (isNormal && markerEl) {
+        markerEl.remove();
+      }
+    }
+    updateBefundPreview(patient);
+  }
 }
 
 function renderEmptyState() {
@@ -537,6 +717,7 @@ function renderEmptyState() {
   if (historyBook) historyBook.innerHTML = "";
   if (openPoints) openPoints.innerHTML = "";
   if (openCountBadge) openCountBadge.textContent = "0 offen";
+  if (befundPanel) befundPanel.innerHTML = "";
 }
 
 // ---- Inhaltliche Suche durch Patientendaten und archivierte Sitzungen ----
