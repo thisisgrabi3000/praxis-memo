@@ -581,8 +581,7 @@ function patientMatchesQuery(patient, query) {
 function renderPatients() {
   const query = patientSearch.value.trim().toLowerCase();
   const visible = patients.filter((p) => patientMatchesQuery(p, query));
-  const sorted = [...visible].sort(sortByDateAndTime);
-  const groups = groupPatientsByDate(sorted);
+  const sorted = [...visible].sort(sortPatientsById);
 
   if (!sorted.length) {
     patientList.innerHTML = `
@@ -593,35 +592,15 @@ function renderPatients() {
     return;
   }
 
-  patientList.innerHTML = groups
-    .map(([dateKey, group]) => {
-      const isOpen = Boolean(query) || group.some((p) => p.uid === selectedUid) || dateKey === todayIso();
-      const label = formatDateGroup(dateKey);
-      const isToday = dateKey === todayIso();
+  patientList.innerHTML = sorted
+    .map((p) => {
+      const active = p.uid === selectedUid ? " active" : "";
+      const idMatched = query && p.id.toLowerCase().includes(query);
+      const contentHit = !idMatched && query ? findContentMatch(p, query) : null;
       return `
-      <details class="day-group"${isOpen ? " open" : ""}>
-        <summary class="day-heading${isToday ? " day-today" : ""}">
-          <span class="day-title">
-            <span class="day-name">${escapeHtml(label)}</span>
-            ${dateKey && dateKey !== "0000" ? `<small class="day-date">${escapeHtml(formatDateShort(dateKey))}</small>` : ""}
-          </span>
-          <em>${group.length} ${group.length === 1 ? "Termin" : "Termine"}</em>
-        </summary>
-        ${group.map((p) => {
-          const active = p.uid === selectedUid ? " active" : "";
-          // Snippet nur zeigen, wenn nicht direkt durch Patientenkürzel gematcht
-          const idMatched = query && p.id.toLowerCase().includes(query);
-          const contentHit = !idMatched && query ? findContentMatch(p, query) : null;
-          return `
-          <button class="patient-button${active}" type="button" data-uid="${escapeHtml(p.uid)}" data-search-hit="${contentHit ? "1" : ""}">
-            <strong>${escapeHtml(p.id)}</strong>
-            <span class="mini-status">${escapeHtml(p.pendingStructure ? "KI fertig" : p.status)}</span>
-            <span>${escapeHtml(p.nextTime || "Uhrzeit offen")}</span>
-            <span class="patient-focus">${escapeHtml(clip(p.focus || p.agreement, 92))}</span>
-            ${contentHit ? `<span class="patient-search-hit">${escapeHtml(contentHit.source)}: ${escapeHtml(contentHit.snippet)}</span>` : ""}
-          </button>`;
-        }).join("")}
-      </details>`;
+      <button class="patient-button${active}" type="button" data-uid="${escapeHtml(p.uid)}" data-search-hit="${contentHit ? "1" : ""}">
+        <strong>${escapeHtml(p.id)}</strong>
+      </button>`;
     })
     .join("");
 
@@ -629,7 +608,6 @@ function renderPatients() {
     btn.addEventListener("click", () => {
       selectedUid = btn.dataset.uid;
       stopDictation(false);
-      // Wenn der Treffer aus einer Inhaltssuche kam, direkt ins Archiv springen
       activeStep = btn.dataset.searchHit === "1" ? "prep" : "record";
       renderAll();
     });
@@ -648,6 +626,10 @@ function groupPatientsByDate(list) {
     if (b === "0000") return -1;
     return a.localeCompare(b);
   });
+}
+
+function sortPatientsById(a, b) {
+  return (a.id || "").localeCompare(b.id || "", "de", { numeric: true, sensitivity: "base" });
 }
 
 function sortByDateAndTime(a, b) {
