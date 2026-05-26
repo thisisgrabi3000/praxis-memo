@@ -50,6 +50,20 @@ function befundDefaultSelection(catalog) {
   return sel;
 }
 
+function befundSectionText(section, sel) {
+  if (!sel || sel.nichtErhebbar) {
+    return `${section.label} konnte nicht erhoben werden`;
+  }
+  const ids = Array.isArray(sel.itemIds) ? sel.itemIds : [];
+  if (sel.normal || ids.length === 0) {
+    return section.normal;
+  }
+  return section.items
+    .filter((it) => ids.includes(it.id))
+    .map((it) => it.text)
+    .join("; ");
+}
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { BEFUND_CATALOG, befundDefaultSelection };
+  module.exports = { BEFUND_CATALOG, befundDefaultSelection, befundSectionText };
 }

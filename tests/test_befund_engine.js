@@ -17,3 +17,22 @@ for (const s of B.BEFUND_CATALOG) {
 }
 
 console.log("test_befund_engine TASK1 OK");
+
+const sec = B.BEFUND_CATALOG.find((s) => s.id === "stimmung");
+// normal
+assert.strictEqual(B.befundSectionText(sec, { normal: true, itemIds: [] }),
+  "Stimmung ausgeglichen, Antrieb unauffällig", "normal → Normaltext");
+// nicht erhebbar
+assert.strictEqual(B.befundSectionText(sec, { normal: false, itemIds: [], nichtErhebbar: true }),
+  "Vitalität & Stimmung konnte nicht erhoben werden", "nicht erhebbar → fester Satz");
+// abweichende items in Katalogreihenfolge, mit '; ' verbunden
+assert.strictEqual(
+  B.befundSectionText(sec, { normal: false, itemIds: ["antrieb_min", "depressiv"] }),
+  "Stimmung niedergeschlagen; Antrieb vermindert",
+  "items in Katalogreihenfolge, ';'-verbunden"
+);
+// leere itemIds trotz normal:false → fällt auf Normaltext zurück
+assert.strictEqual(B.befundSectionText(sec, { normal: false, itemIds: [] }),
+  "Stimmung ausgeglichen, Antrieb unauffällig", "keine items → Normaltext");
+
+console.log("test_befund_engine TASK2 OK");
