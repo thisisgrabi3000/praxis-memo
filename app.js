@@ -1847,7 +1847,10 @@ async function requestBefundSuggest(patient) {
     );
     savePatients();
     renderBefund(patient);
-    showToast("KI-Vorschlag eingefuegt — bitte fachlich prufen.");
+    const n = Object.values(data.suggestions || {}).reduce((a, arr) => a + (Array.isArray(arr) ? arr.length : 0), 0);
+    showToast(n > 0
+      ? `KI hat ${n} Punkt(e) angekreuzt — bitte fachlich pruefen.`
+      : "KI hat keine ankreuzbaren Auffaelligkeiten gefunden.");
   } catch {
     showToast("KI-Befund-Vorschlag fehlgeschlagen — bitte KI-Status pruefen.");
   }
