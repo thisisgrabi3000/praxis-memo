@@ -494,7 +494,8 @@ function renderAll() {
     archivePatientButton.disabled = false;
     const label = patient.archived ? "Reaktivieren" : "Archivieren";
     archivePatientButton.title = label;
-    archivePatientButton.lastChild.textContent = label;
+    const archiveLabelEl = archivePatientButton.querySelector("[data-label]");
+    if (archiveLabelEl) archiveLabelEl.textContent = label;
   }
   setValue(patientIdInput, patient.id);
   statusSelect.value = patient.status;
@@ -615,7 +616,7 @@ function renderPatients() {
 
   const activeHtml = active.map((p) => patientButtonHtml(p, query)).join("");
   const archivedHtml = archived.length
-    ? `<details class="archived-group"${query ? " open" : ""}>
+    ? `<details class="archived-group"${query || !active.length ? " open" : ""}>
         <summary class="archived-heading">Archiviert <em>${archived.length}</em></summary>
         ${archived.map((p) => patientButtonHtml(p, query)).join("")}
       </details>`
