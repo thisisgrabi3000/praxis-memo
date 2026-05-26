@@ -586,6 +586,7 @@ function renderBefund(patient) {
   befundPanel.innerHTML = `
     <div class="befund-topbar">
       <button type="button" class="soft-action befund-all-normal-btn">Alles unauffällig</button>
+      <button type="button" class="quiet-action befund-ai-btn" id="befundAiBtn"${kiAvailable === false ? ' disabled title="KI nicht aktiv"' : ""}>KI-Vorschlag aus Notiz</button>
       <div class="befund-preview-wrap">
         <p class="befund-preview" id="befundPreview">${escapeHtml(fliesstext)}</p>
       </div>
@@ -617,6 +618,12 @@ function handleBefundClick(event) {
     patient.befund = befundSetAllNormal(BEFUND_CATALOG);
     savePatients();
     renderBefund(patient);
+    return;
+  }
+
+  // KI-Vorschlag aus Notiz
+  if (event.target.closest(".befund-ai-btn")) {
+    requestBefundSuggest(patient);
     return;
   }
 
@@ -1797,6 +1804,53 @@ function deletePatient() {
   savePatients();
   renderAll();
   showToast(`Patient ${removedId} gelöscht.`);
+}
+
+// ============================================================
+// BEFUND KI-VORSCHLAG (über Server-Proxy → Ollama)
+// ============================================================
+
+async function requestBefundSuggest(patient) {
+  const transcript = (patient.transcript || "").trim();
+  if (!transcript) {
+    showToast("Keine Notiz vorhanden.");
+    return;
+  }
+
+  // Kompakten Katalog fuer den Server aufbauen
+  const catalog = BEFUND_CATALOG.map((section) => ({
+    id: section.id,
+    label: section.label,
+    items: befundSectionItems(section).map((it) => ({ id: it.id, label: it.label }))
+  }));
+
+  // Button in den Lade-Zustand versetzen
+  const aiBtn = befundPanel && befundPanel.querySelector(".befund-ai-btn");
+  if (aiBtn) {
+    aiBtn.disabled = true;
+    aiBtn.textContent = "KI lauft…";
+  }
+
+  try {
+    const r = await fetch("/api/befund-suggest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcript, catalog })
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) throw new Error(data.error || "Fehler");
+
+    patient.befund = befundApplySuggestions(
+      patient.befund || befundDefaultSelection(BEFUND_CATALOG),
+      data.suggestions,
+      BEFUND_CATALOG
+    );
+    savePatients();
+    renderBefund(patient);
+    showToast("KI-Vorschlag eingefuegt — bitte fachlich prufen.");
+  } catch {
+    showToast("KI-Befund-Vorschlag fehlgeschlagen — bitte KI-Status pruefen.");
+  }
 }
 
 // ============================================================

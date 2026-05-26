@@ -1730,6 +1730,16 @@ textarea:focus {
   flex-shrink: 0;
 }
 
+.befund-ai-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.befund-ai-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .befund-copy-btn {
   white-space: nowrap;
   flex-shrink: 0;

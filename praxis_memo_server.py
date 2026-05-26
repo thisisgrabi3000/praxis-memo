@@ -287,6 +287,111 @@ def structure_transcript(transcript: str, patient_id: str = "") -> tuple[dict, s
     return structure_via_ollama(transcript, patient_id), "local"
 
 
+def _befund_suggest_messages(transcript: str, catalog: list) -> list:
+    """Build messages for the befund-suggest Ollama call."""
+    # Compact catalog description: Sektion-ID + Label + Items (ID + Label)
+    catalog_lines = []
+    for section in catalog:
+        items = section.get("items", [])
+        item_parts = ", ".join(
+            f"{it['id']} ({it['label']})" for it in items if it.get("id") and it.get("label")
+        )
+        label = section.get("label", section.get("id", ""))
+        sid = section.get("id", "")
+        catalog_lines.append(f"  {sid} ({label}): {item_parts}")
+    catalog_text = "\n".join(catalog_lines)
+
+    user_prompt = (
+        "Du bist ein Dokumentationssystem fuer eine psychiatrische oder psychotherapeutische Praxis.\n"
+        "Analysiere die folgende Nachnotiz und entscheide, welche psychopathologischen Befund-Items "
+        "durch die Notiz KLAR belegt sind.\n\n"
+        f"Nachnotiz:\n{transcript}\n\n"
+        "Verfuegbare Befund-Sektionen und Items (Format: sektionId (Sektionsname): itemId (Itemlabel), ...):\n"
+        f"{catalog_text}\n\n"
+        "WICHTIG: Antworte AUSSCHLIESSLICH auf Deutsch. Verwende KEINE chinesischen, japanischen, "
+        "koreanischen oder andere fremdsprachigen Schriftzeichen.\n"
+        "WICHTIG: Verwende AUSSCHLIESSLICH die oben aufgelisteten sektionIds und itemIds — "
+        "erfinde keine neuen IDs.\n"
+        "WICHTIG: Nimm eine Sektion nur auf, wenn eine Abweichung vom Normalbefund durch die "
+        "Nachnotiz KLAR belegt ist. Bei Unklarheit oder fehlendem Beleg: Sektion weglassen oder "
+        "leeres Array verwenden. Stelle KEINE Diagnosen und triff KEINE Therapieentscheidungen.\n\n"
+        "Antworte ausschliesslich mit einem JSON-Objekt (kein Text davor oder danach), "
+        "das sektionId -> Array der zutreffenden itemIds abbildet.\n"
+        "Beispielform (nur Struktur, keine echten Inhalte erfinden):\n"
+        '{ "stimmung": ["depressiv"], "schlaf": [] }'
+    )
+    return [
+        {"role": "system", "content": (
+            "Du bist ein praezises medizinisches Dokumentationssystem fuer eine deutschsprachige "
+            "psychiatrische oder psychotherapeutische Praxis. "
+            "Antworte ausschliesslich auf Deutsch und ausschliesslich mit dem geforderten JSON-Objekt, "
+            "ohne weitere Erklaerungen. Verwende niemals chinesische, japanische, koreanische oder "
+            "andere fremdsprachige Schriftzeichen."
+        )},
+        {"role": "user", "content": user_prompt},
+    ]
+
+
+def befund_suggest_via_ollama(transcript: str, catalog: list) -> dict:
+    """Ask the local model which befund items are supported by the note.
+
+    catalog is the compact form sent from the client:
+        [{"id": "stimmung", "label": "...", "items": [{"id": "depressiv", "label": "..."}]}, ...]
+
+    Returns a validated dict {sectionId: [itemId, ...]} containing only
+    section/item ids that were present in the POSTed catalog.
+    """
+    _check_word_limit(transcript)
+
+    # Build valid-id lookup from the catalog the client POSTed (server-side validation)
+    valid_sections: dict[str, set[str]] = {}
+    for section in catalog:
+        sid = section.get("id", "")
+        if not sid:
+            continue
+        item_ids = {
+            it["id"] for it in section.get("items", []) if it.get("id")
+        }
+        valid_sections[sid] = item_ids
+
+    body = json.dumps({
+        "model": active_model(),
+        "messages": _befund_suggest_messages(transcript, catalog),
+        "stream": False,
+        "format": "json",
+        "options": {
+            "temperature": 0.1,
+            "num_ctx": OLLAMA_NUM_CTX,
+        },
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"{OLLAMA_BASE}/api/chat",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    with urllib.request.urlopen(req, timeout=OLLAMA_TIMEOUT_SECONDS) as resp:
+        response_data = json.loads(resp.read().decode("utf-8"))
+
+    content = (response_data.get("message") or {}).get("content", "").strip()
+    raw = _extract_json(content)
+
+    # Server-side validation: keep only known sectionIds and known itemIds
+    validated: dict[str, list[str]] = {}
+    for sid, items in raw.items():
+        if sid not in valid_sections:
+            continue
+        if not isinstance(items, list):
+            continue
+        good_items = [iid for iid in items if isinstance(iid, str) and iid in valid_sections[sid]]
+        if good_items:
+            validated[sid] = good_items
+
+    return validated
+
+
 def now_stamp() -> str:
     return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -507,6 +612,23 @@ class PraxisMemoHandler(BaseHTTPRequestHandler):
             payload = payload_from_request(self)
         except json.JSONDecodeError:
             self.send_json(400, {"ok": False, "error": "Invalid JSON"})
+            return
+
+        if path == "/api/befund-suggest":
+            transcript = (payload.get("transcript") or "").strip()
+            catalog = payload.get("catalog")
+            if not transcript:
+                self.send_json(400, {"ok": False, "error": "Kein Transkript"})
+                return
+            if not isinstance(catalog, list) or not catalog:
+                self.send_json(400, {"ok": False, "error": "Kein Befund-Katalog"})
+                return
+            try:
+                suggestions = befund_suggest_via_ollama(transcript, catalog)
+                self.send_json(200, {"ok": True, "suggestions": suggestions})
+            except Exception as exc:
+                logger.exception("Befund-Vorschlag fehlgeschlagen")
+                self.send_json(503, {"ok": False, "error": str(exc)})
             return
 
         if path == "/api/save":
