@@ -50,4 +50,15 @@ assert.deepStrictEqual(allNormal.stimmung.itemIds, [], "setAllNormal: keine item
 assert.strictEqual(def.stimmung.normal, true, "Original-Selektion bleibt unveraendert");
 assert.deepStrictEqual(def.stimmung.itemIds, [], "Original-Selektion: itemIds unveraendert");
 
+// --- befundSetNormal loescht auch Freitext ---
+const withFreitext = B.befundSetFreitext(def, "stimmung", "stimmung", "tagesabhaengig");
+const normalizedAgain = B.befundSetNormal(withFreitext, "stimmung");
+assert.deepStrictEqual(normalizedAgain.stimmung.freitext, {}, "setNormal: Freitext wird geleert");
+
+// --- toggle letztes Item OFF, aber Freitext noch gesetzt -> normal bleibt false ---
+let mix = B.befundSetFreitext(def, "stimmung", "stimmung", "tagesabhaengig");
+mix = B.befundToggleItem(mix, "stimmung", "depressiv"); // ON
+mix = B.befundToggleItem(mix, "stimmung", "depressiv"); // wieder OFF
+assert.strictEqual(mix.stimmung.normal, false, "Freitext haelt normal=false trotz leerer itemIds");
+
 console.log("test_befund_select OK");

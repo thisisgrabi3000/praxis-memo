@@ -633,6 +633,10 @@ function handleBefundClick(event) {
   // Kopieren
   if (event.target.closest(".befund-copy-btn")) {
     const text = befundFliesstext(BEFUND_CATALOG, patient.befund);
+    if (!navigator.clipboard) {
+      showToast("Kopieren in diesem Browser nicht verfügbar.");
+      return;
+    }
     navigator.clipboard.writeText(text).then(() => {
       showToast("Befund-Fliesstext kopiert.");
     }).catch(() => {
