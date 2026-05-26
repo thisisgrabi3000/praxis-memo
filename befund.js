@@ -285,6 +285,46 @@ function befundFliesstext(catalog, selection) {
     .join(" ");
 }
 
+// ============================================================
+// PURE SELECTION-MUTATION HELPERS (immutable-style)
+// ============================================================
+
+function hasFreitext(sel) {
+  return sel && sel.freitext && Object.values(sel.freitext).some((t) => (t || "").trim());
+}
+
+function befundSetAllNormal(catalog) {
+  return befundDefaultSelection(catalog);
+}
+
+function befundSetNormal(selection, sectionId) {
+  return { ...selection, [sectionId]: { normal: true, itemIds: [], freitext: {} } };
+}
+
+function befundToggleItem(selection, sectionId, itemId) {
+  const cur = selection[sectionId] || { normal: true, itemIds: [] };
+  const has = (cur.itemIds || []).includes(itemId);
+  const itemIds = has ? cur.itemIds.filter((x) => x !== itemId) : [...(cur.itemIds || []), itemId];
+  return { ...selection, [sectionId]: { ...cur, normal: itemIds.length === 0 && !hasFreitext(cur), itemIds } };
+}
+
+function befundSetFreitext(selection, sectionId, clusterId, text) {
+  const cur = selection[sectionId] || { normal: true, itemIds: [] };
+  const freitext = { ...(cur.freitext || {}), [clusterId]: text };
+  const anyText = Object.values(freitext).some((t) => (t || "").trim());
+  return { ...selection, [sectionId]: { ...cur, freitext, normal: (cur.itemIds || []).length === 0 && !anyText } };
+}
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { BEFUND_CATALOG, befundSectionItems, befundDefaultSelection, befundSectionText, befundFliesstext };
+  module.exports = {
+    BEFUND_CATALOG,
+    befundSectionItems,
+    befundDefaultSelection,
+    befundSectionText,
+    befundFliesstext,
+    befundSetAllNormal,
+    befundSetNormal,
+    befundToggleItem,
+    befundSetFreitext
+  };
 }
