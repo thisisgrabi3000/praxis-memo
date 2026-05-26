@@ -117,6 +117,36 @@ Suizidalität) · Globalparameter.
 ### 3.7 Verortung in der UI
 - Eigener Bereich/Tab **„Befund"** beim Patienten (neben Einsprechen / Prüfen / Anknüpfen).
 
+### 3.8 Ziel-Look (nach Befundomat-Screenshots vom User) + erweitertes Datenmodell
+Optik/Bedienung 1:1 wie Befundomat (eigener Inhalt; Befundomats PPB3-Klassifikations-Badges
+L/P/I werden NICHT übernommen — geschütztes wissenschaftliches System).
+
+**Übersicht:** Liste farblich gruppierter **Sektions-Balken**, je mit **Icon + Name** links und
+einem **„Normalbefund"-Button** rechts. Domänen-Farbgruppen (wie in den Screenshots):
+- kognitiv/objektiv (Bewusstsein, Orientierung, Konzentration & Gedächtnis, Formales Denken,
+  Psychomotorik) → blau
+- Erscheinung, Kommunikationsverhalten → grün
+- Psychovegetativum, Affekte & Impulse, Vitalität & Stimmung → amber
+- Wahrnehmung, Inhaltliches Denken & Ich-Störungen, Abhängigkeit, Ängste, Zwänge,
+  Selbstwert & Krankheitseinstellung → lila
+- Eigen- & Fremdgefährdung → teal
+(Töne aus der App-Palette ableiten, ruhig.)
+
+**Detail (Sektion aufgeklappt):** Items als **Checkboxen**, gruppiert in **Cluster** mit
+Überschrift (z. B. „Quantitatives Bewusstsein" / „Qualitatives Bewusstsein"); je Cluster ein
+**„eigener Text"-Freitextfeld**. Mehrfachauswahl. „Normalbefund"-Klick je Sektion + globaler
+„Alles unauffällig"-Button.
+
+**Erweitertes Datenmodell** (ersetzt 3.6-Skizze):
+- Sektion: `{ id, label, group: "kognitiv|erscheinung|vegetativ|psychotisch|gefahr",
+  icon, normal, clusters: Cluster[] }`
+- Cluster: `{ id, label, items: Item[] }`
+- Item: `{ id, label, text }`
+- Auswahl je Sektion: `{ normal: bool, itemIds: [...], freitext?: { [clusterId]: string },
+  nichtErhebbar?: bool }` (itemIds sind sektionsweit eindeutig)
+- Fließtext: Sektionen in Reihenfolge; je Sektion Normaltext ODER gewählte Item-Texte (über
+  alle Cluster, Katalogreihenfolge) + ggf. Freitext; deterministisch.
+
 ---
 
 ## Scope & Stufen
