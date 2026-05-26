@@ -57,7 +57,8 @@ function createEmptyPatient(uid, id) {
     currentSessionId: makeId("session"),
     pendingStructure: null,
     resolvedSuggestions: [],
-    sessions: []
+    sessions: [],
+    archived: false
   };
 }
 
@@ -113,7 +114,8 @@ function normalizePatient(raw) {
     currentSessionId: raw.currentSessionId || makeId("session"),
     pendingStructure: normalizePendingStructure(raw.pendingStructure),
     resolvedSuggestions: Array.isArray(raw?.resolvedSuggestions) ? raw.resolvedSuggestions : [],
-    sessions: Array.isArray(raw.sessions) ? raw.sessions.map(normalizeSession) : []
+    sessions: Array.isArray(raw.sessions) ? raw.sessions.map(normalizeSession) : [],
+    archived: Boolean(raw.archived)
   };
 }
 
@@ -370,6 +372,7 @@ const restoreButton = document.querySelector("#restoreButton");
 const restoreInput = document.querySelector("#restoreInput");
 const addPatientButton = document.querySelector("#addPatientButton");
 const deletePatientButton = document.querySelector("#deletePatientButton");
+const archivePatientButton = document.querySelector("#archivePatientButton");
 const quickPrep = document.querySelector("#quickPrep");
 const sessionCountBadge = document.querySelector("#sessionCountBadge");
 const historyBook = document.querySelector("#historyBook");
@@ -487,6 +490,12 @@ function renderAll() {
 
   deletePatientButton.disabled = false;
   if (exportPatientButton) exportPatientButton.disabled = false;
+  if (archivePatientButton) {
+    archivePatientButton.disabled = false;
+    const label = patient.archived ? "Reaktivieren" : "Archivieren";
+    archivePatientButton.title = label;
+    archivePatientButton.lastChild.textContent = label;
+  }
   setValue(patientIdInput, patient.id);
   statusSelect.value = patient.status;
   patientMeta.textContent = formatNextAppointment(patient);
@@ -515,6 +524,7 @@ function renderEmptyState() {
   document.body.classList.add("no-patient");
   deletePatientButton.disabled = true;
   if (exportPatientButton) exportPatientButton.disabled = true;
+  if (archivePatientButton) archivePatientButton.disabled = true;
   patientIdInput.value = "";
   statusSelect.value = "Offen";
   patientMeta.textContent = "Noch keine Patienten angelegt";
@@ -578,31 +588,39 @@ function patientMatchesQuery(patient, query) {
   return findContentMatch(patient, query) !== null;
 }
 
+function patientButtonHtml(p, query) {
+  const active = p.uid === selectedUid ? " active" : "";
+  const idMatched = query && p.id.toLowerCase().includes(query);
+  const contentHit = !idMatched && query ? findContentMatch(p, query) : null;
+  return `
+      <button class="patient-button${active}" type="button" data-uid="${escapeHtml(p.uid)}" data-search-hit="${contentHit ? "1" : ""}">
+        <strong>${escapeHtml(p.id)}</strong>
+      </button>`;
+}
+
 function renderPatients() {
   const query = patientSearch.value.trim().toLowerCase();
   const visible = patients.filter((p) => patientMatchesQuery(p, query));
   const sorted = [...visible].sort(sortPatientsById);
+  const { active, archived } = partitionPatientsByArchived(sorted);
 
   if (!sorted.length) {
     patientList.innerHTML = `
       <div class="empty-patients">
         <strong>${query ? "Keine Treffer" : "Noch keine Patienten"}</strong>
-        <span>${query ? "Suche anpassen." : "Oben auf „Patient anlegen“ klicken."}</span>
+        <span>${query ? "Suche anpassen." : 'Oben auf „Patient anlegen“ klicken.'}</span>
       </div>`;
     return;
   }
 
-  patientList.innerHTML = sorted
-    .map((p) => {
-      const active = p.uid === selectedUid ? " active" : "";
-      const idMatched = query && p.id.toLowerCase().includes(query);
-      const contentHit = !idMatched && query ? findContentMatch(p, query) : null;
-      return `
-      <button class="patient-button${active}" type="button" data-uid="${escapeHtml(p.uid)}" data-search-hit="${contentHit ? "1" : ""}">
-        <strong>${escapeHtml(p.id)}</strong>
-      </button>`;
-    })
-    .join("");
+  const activeHtml = active.map((p) => patientButtonHtml(p, query)).join("");
+  const archivedHtml = archived.length
+    ? `<details class="archived-group"${query ? " open" : ""}>
+        <summary class="archived-heading">Archiviert <em>${archived.length}</em></summary>
+        ${archived.map((p) => patientButtonHtml(p, query)).join("")}
+      </details>`
+    : "";
+  patientList.innerHTML = activeHtml + archivedHtml;
 
   patientList.querySelectorAll(".patient-button").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -626,6 +644,12 @@ function groupPatientsByDate(list) {
     if (b === "0000") return -1;
     return a.localeCompare(b);
   });
+}
+
+function partitionPatientsByArchived(list) {
+  const active = list.filter((p) => !p.archived);
+  const archived = list.filter((p) => p.archived);
+  return { active, archived };
 }
 
 function sortPatientsById(a, b) {
@@ -2158,6 +2182,16 @@ restoreInput.addEventListener("change", async (e) => {
 });
 addPatientButton.addEventListener("click", addPatient);
 deletePatientButton.addEventListener("click", deletePatient);
+if (archivePatientButton) {
+  archivePatientButton.addEventListener("click", () => {
+    const patient = getPatient();
+    if (!patient) return;
+    patient.archived = !patient.archived;
+    savePatients();
+    renderAll();
+    showToast(patient.archived ? `Patient ${patient.id} archiviert.` : `Patient ${patient.id} reaktiviert.`);
+  });
+}
 patientSearch.addEventListener("input", renderPatients);
 recordButton.addEventListener("click", startDictation);
 structureButton.addEventListener("click", structureTranscript);
