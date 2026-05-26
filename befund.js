@@ -315,6 +315,38 @@ function befundSetFreitext(selection, sectionId, clusterId, text) {
   return { ...selection, [sectionId]: { ...cur, freitext, normal: (cur.itemIds || []).length === 0 && !anyText } };
 }
 
+// ============================================================
+// KI-VORSCHLAG ANWENDEN (immutable)
+// ============================================================
+
+// befundApplySuggestions(selection, suggestions, catalog) -> newSelection
+//
+// suggestions = { [sectionId]: [itemId, ...] }
+// Für jede Sektion im Katalog: filtert die vorgeschlagenen IDs auf die im Katalog
+// vorhandenen (keine Erfindungen möglich). Falls nach dem Filter mindestens eine
+// gültige ID übrig bleibt, setzt diese Sektion auf normal:false + die validen IDs.
+// Andernfalls bleibt die Sektion unverändert. Vollständig immutabel.
+
+function befundApplySuggestions(selection, suggestions, catalog) {
+  const result = {};
+  for (const section of catalog) {
+    const validIds = new Set(befundSectionItems(section).map((it) => it.id));
+    const suggested = Array.isArray(suggestions[section.id]) ? suggestions[section.id] : [];
+    const filtered = suggested.filter((id) => validIds.has(id));
+    if (filtered.length > 0) {
+      const existing = selection[section.id] || { normal: true, itemIds: [], freitext: {} };
+      result[section.id] = {
+        normal: false,
+        itemIds: filtered,
+        freitext: existing.freitext || {}
+      };
+    } else {
+      result[section.id] = selection[section.id];
+    }
+  }
+  return result;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     BEFUND_CATALOG,
@@ -325,6 +357,7 @@ if (typeof module !== "undefined" && module.exports) {
     befundSetAllNormal,
     befundSetNormal,
     befundToggleItem,
-    befundSetFreitext
+    befundSetFreitext,
+    befundApplySuggestions
   };
 }
