@@ -2075,7 +2075,13 @@ async function structureTranscript() {
     const data = await r.json();
     if (!r.ok || !data.ok) throw new Error(data.error || "Fehler");
 
-    const parsed = data.result || {};
+    // Server liefert open/watch teils als Array — vor der String-Validierung normalisieren.
+    const rawResult = data.result || {};
+    const parsed = { ...rawResult };
+    for (const key of ["core", "agreement", "open", "watch"]) {
+      const v = parsed[key];
+      parsed[key] = Array.isArray(v) ? v.filter(Boolean).join("; ") : (v == null ? "" : String(v));
+    }
     validateStructuredResult(parsed, structureInput, lockedPatientId);
     const target = patients.find((p) => p.uid === lockedUid);
     if (!target) throw new Error("Patient nicht mehr vorhanden");
