@@ -891,6 +891,11 @@ body.no-patient .empty-workspace {
 .editor-grid .transcript-panel { background: #c3d9ee; }
 .editor-grid .details-panel { background: #c8e4cf; }
 
+/* Anknuepfen: die drei Bloecke (Vorbereitung / Verlaufsbuch / Noch offen) klar + unterschiedlich toenen */
+.prep-grid .prep-focus { background: #c3d9ee; }
+.prep-grid .history-panel { background: #c8e4cf; }
+.prep-grid .open-points-panel { background: #efe2bf; }
+
 .record-panel,
 .panel {
   border: 1px solid var(--line-strong);
