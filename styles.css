@@ -889,7 +889,7 @@ body.no-patient .empty-workspace {
 .panel {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
-  background: linear-gradient(135deg, var(--box-blue), var(--box-blue-soft));
+  background: var(--surface-prep);
 }
 
 .record-panel {
@@ -899,7 +899,6 @@ body.no-patient .empty-workspace {
   align-items: center;
   margin-bottom: 14px;
   padding: 18px;
-  background: linear-gradient(135deg, rgba(232, 242, 249, 0.9), rgba(247, 251, 253, 0.9));
 }
 
 .recorder {
