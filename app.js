@@ -547,7 +547,11 @@ function renderBefund(patient) {
   const sectionsHtml = BEFUND_CATALOG.map((section) => {
     const secSel = sel[section.id] || { normal: true, itemIds: [] };
     const isNormal = secSel.normal && !(secSel.nichtErhebbar);
-    const marker = isNormal ? "" : ' <span class="befund-marker" aria-label="abweichend">&#x25CF;</span>';
+    const marker = secSel.nichtErhebbar
+      ? ' <span class="befund-marker nichterhebbar" aria-label="nicht erhebbar">&#x2013;</span>'
+      : isNormal
+        ? ' <span class="befund-marker normal" aria-label="unauffällig / abgehakt">&#x2713;</span>'
+        : ' <span class="befund-marker abweichend" aria-label="abweichend">&#x25CF;</span>';
     const wasOpen = openIds.has(section.id) ? " open" : "";
 
     const clustersHtml = section.clusters.map((cluster) => {

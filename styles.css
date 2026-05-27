@@ -1647,11 +1647,14 @@ textarea:focus {
 }
 
 .befund-marker {
-  color: var(--amber);
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 700;
   vertical-align: middle;
-  margin-left: 4px;
+  margin-left: 6px;
 }
+.befund-marker.normal { color: #2e7d52; }        /* unauffaellig / abgehakt */
+.befund-marker.abweichend { color: var(--red); } /* Abweichung gewaehlt */
+.befund-marker.nichterhebbar { color: var(--moss); }
 
 .befund-section-body {
   padding: 10px 14px 14px;
