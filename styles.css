@@ -886,9 +886,10 @@ body.no-patient .empty-workspace {
   background: var(--paper-soft);
 }
 
-/* Einsprechen: Bloecke klar und unterschiedlich toenen (analog zu den Pruefen-Feldern) */
-.transcript-panel { background: #cfe0ef; }
-.details-panel { background: #cfe6d3; }
+/* Einsprechen: Bloecke klar und unterschiedlich toenen (analog zu den Pruefen-Feldern).
+   .editor-grid-Praefix erhoeht die Spezifitaet, sonst ueberschreibt die spaetere .panel-Regel. */
+.editor-grid .transcript-panel { background: #c3d9ee; }
+.editor-grid .details-panel { background: #c8e4cf; }
 
 .record-panel,
 .panel {
