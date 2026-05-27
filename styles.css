@@ -882,8 +882,13 @@ body.no-patient .empty-workspace {
 
 .step-panel.active {
   display: block;
-  background: var(--surface-panel);
+  /* heller Tab-Hintergrund, damit die getoenten Bloecke darauf klar hervortreten */
+  background: var(--paper-soft);
 }
+
+/* Einsprechen: Bloecke klar und unterschiedlich toenen (analog zu den Pruefen-Feldern) */
+.transcript-panel { background: #cfe0ef; }
+.details-panel { background: #cfe6d3; }
 
 .record-panel,
 .panel {
