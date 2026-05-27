@@ -1608,7 +1608,7 @@ textarea:focus {
 }
 
 /* Normalbefund-Button gruen, solange die Sektion unauffaellig ist (nichts angekreuzt, kein Freitext) */
-.befund-section:not(:has(.befund-cb:checked)):not(:has(.befund-freitext:not(:placeholder-shown))) .befund-normal-btn {
+.befund-normal-btn.is-active {
   background: #2e7d52;
   border-color: #2e7d52;
   color: #fff;

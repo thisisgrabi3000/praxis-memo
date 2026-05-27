@@ -577,7 +577,7 @@ function renderBefund(patient) {
         <span class="befund-section-label">${escapeHtml(section.label)}${marker}</span>
       </summary>
       <div class="befund-section-body">
-        <button type="button" class="befund-normal-btn" data-sid="${sid}">Normalbefund</button>
+        <button type="button" class="befund-normal-btn${isNormal ? " is-active" : ""}" data-sid="${sid}">Normalbefund</button>
         ${clustersHtml}
       </div>
     </details>`;
@@ -631,7 +631,7 @@ function handleBefundClick(event) {
   const normalBtn = event.target.closest(".befund-normal-btn");
   if (normalBtn) {
     const sid = normalBtn.dataset.sid;
-    patient.befund = befundSetNormal(patient.befund, sid);
+    patient.befund = befundSetNormal(patient.befund, sid, BEFUND_CATALOG);
     savePatients();
     renderBefund(patient);
     return;
@@ -664,22 +664,11 @@ function handleBefundChange(event) {
   if (cb) {
     const sid = cb.dataset.sid;
     const iid = cb.dataset.iid;
-    patient.befund = befundToggleItem(patient.befund, sid, iid);
+    // Cluster-Mutual-Exclusivity kann andere Checkboxen + den Normalbefund-Button aendern
+    // -> volles Re-Render (renderBefund merkt offene Details und laesst sie offen).
+    patient.befund = befundToggleItem(patient.befund, sid, iid, BEFUND_CATALOG);
     savePatients();
-    // Marker in summary aktualisieren ohne vollstaendiges Re-Render (Details bleibt offen)
-    const detail = befundPanel.querySelector(`details.befund-section[data-sid="${CSS.escape(sid)}"]`);
-    const secSel = patient.befund[sid];
-    const isNormal = secSel.normal && !secSel.nichtErhebbar;
-    const markerEl = detail && detail.querySelector(".befund-marker");
-    const labelEl = detail && detail.querySelector(".befund-section-label");
-    if (labelEl) {
-      if (!isNormal && !markerEl) {
-        labelEl.insertAdjacentHTML("beforeend", ' <span class="befund-marker" aria-label="abweichend">&#x25CF;</span>');
-      } else if (isNormal && markerEl) {
-        markerEl.remove();
-      }
-    }
-    updateBefundPreview(patient);
+    renderBefund(patient);
   }
 }
 
@@ -694,7 +683,7 @@ function handleBefundInput(event) {
   if (ft) {
     const sid = ft.dataset.sid;
     const cid = ft.dataset.cid;
-    patient.befund = befundSetFreitext(patient.befund, sid, cid, ft.value);
+    patient.befund = befundSetFreitext(patient.befund, sid, cid, ft.value, BEFUND_CATALOG);
     savePatients();
     const detail = befundPanel.querySelector(`details.befund-section[data-sid="${CSS.escape(sid)}"]`);
     const secSel = patient.befund[sid];

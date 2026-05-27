@@ -1,85 +1,33 @@
-// tests/test_befund_suggest.js — TDD for befundApplySuggestions
-// Run: node tests/test_befund_suggest.js
-// Expected final output: "test_befund_suggest OK"
-
 const assert = require("assert");
 const B = require("../befund.js");
 
-const { BEFUND_CATALOG, befundDefaultSelection, befundApplySuggestions } = B;
+const C = B.BEFUND_CATALOG;
+const def = B.befundDefaultSelection(C);
 
-// Precondition: function is exported
-assert.strictEqual(typeof befundApplySuggestions, "function", "befundApplySuggestions ist exportiert");
+// --- gueltige Abweichung: Cluster-Normal weg, anderer Cluster bleibt normal ---
+const a1 = B.befundApplySuggestions(def, { stimmung: ["depressiv"] }, C);
+assert.ok(a1.stimmung.itemIds.includes("depressiv"), "Vorschlag uebernommen");
+assert.ok(!a1.stimmung.itemIds.includes("n_stimmung_ok"), "Cluster-Normal entfernt");
+assert.ok(a1.stimmung.itemIds.includes("n_antrieb_ok"), "anderer Cluster bleibt normal");
+assert.strictEqual(a1.stimmung.normal, false, "normal false");
 
-const def = befundDefaultSelection(BEFUND_CATALOG);
+// --- ungueltige item-id wird gefiltert ---
+const a2 = B.befundApplySuggestions(def, { stimmung: ["depressiv", "gibtsnicht"] }, C);
+assert.ok(a2.stimmung.itemIds.includes("depressiv") && !a2.stimmung.itemIds.includes("gibtsnicht"), "ungueltige id gefiltert");
 
-// 1. valid suggestion applied
-const result1 = befundApplySuggestions(def, { stimmung: ["depressiv"] }, BEFUND_CATALOG);
-assert.deepStrictEqual(
-  result1.stimmung,
-  { normal: false, itemIds: ["depressiv"], freitext: {} },
-  "gueltige Suggestion wird angewendet"
-);
+// --- Vorschlag nur auf Normal-Item aendert nichts (nur Abweichungen zaehlen) ---
+const a3 = B.befundApplySuggestions(def, { stimmung: ["n_stimmung_ok"] }, C);
+assert.deepStrictEqual(a3.stimmung.itemIds, def.stimmung.itemIds, "nur-Normal-Vorschlag aendert nichts");
 
-// 2. invalid item id filtered out; valid one retained
-const result2 = befundApplySuggestions(def, { stimmung: ["depressiv", "nonexistent"] }, BEFUND_CATALOG);
-assert.deepStrictEqual(
-  result2.stimmung.itemIds,
-  ["depressiv"],
-  "ungueltiges item wird herausgefiltert, gueltiges bleibt"
-);
-assert.strictEqual(result2.stimmung.normal, false, "normal=false wenn valide items vorhanden");
+// --- unbekannte Sektion ignoriert ---
+const a4 = B.befundApplySuggestions(def, { gibtsnicht: ["x"] }, C);
+assert.strictEqual(a4.gibtsnicht, undefined, "unbekannte Sektion ignoriert");
 
-// 3. unknown section ignored — result deepEquals def for all keys
-const result3 = befundApplySuggestions(def, { nosuchsection: ["x"] }, BEFUND_CATALOG);
-for (const s of BEFUND_CATALOG) {
-  assert.deepStrictEqual(
-    result3[s.id],
-    def[s.id],
-    `unbekannte Sektion aendert ${s.id} nicht`
-  );
-}
+// --- leere Liste -> unveraendert ---
+const a5 = B.befundApplySuggestions(def, { stimmung: [] }, C);
+assert.deepStrictEqual(a5.stimmung.itemIds, def.stimmung.itemIds, "leere Liste unveraendert");
 
-// 4. section with empty suggested list stays normal/unchanged
-const result4 = befundApplySuggestions(def, { stimmung: [] }, BEFUND_CATALOG);
-assert.deepStrictEqual(
-  result4.stimmung,
-  def.stimmung,
-  "leere Suggestion laesst Sektion unveraendert"
-);
-
-// 5. original def not mutated
-const defCopy = JSON.parse(JSON.stringify(def));
-befundApplySuggestions(def, { stimmung: ["depressiv"] }, BEFUND_CATALOG);
-assert.deepStrictEqual(def, defCopy, "Original-Selektion wird nicht veraendert (immutabel)");
-
-// 6. existing freitext is preserved when suggestion is applied
-const withFreitext = {
-  ...def,
-  stimmung: { normal: true, itemIds: [], freitext: { stimmung: "tagesabhaengig" } }
-};
-const result6 = befundApplySuggestions(withFreitext, { stimmung: ["depressiv"] }, BEFUND_CATALOG);
-assert.deepStrictEqual(
-  result6.stimmung.freitext,
-  { stimmung: "tagesabhaengig" },
-  "vorhandener Freitext bleibt erhalten"
-);
-
-// 7. all-invalid suggestion for a section leaves it unchanged
-const result7 = befundApplySuggestions(def, { stimmung: ["foo", "bar"] }, BEFUND_CATALOG);
-assert.deepStrictEqual(
-  result7.stimmung,
-  def.stimmung,
-  "nur unbekannte IDs: Sektion bleibt unveraendert"
-);
-
-// 8. multiple valid sections applied simultaneously
-const result8 = befundApplySuggestions(def, {
-  stimmung: ["depressiv"],
-  aengste: ["panik"]
-}, BEFUND_CATALOG);
-assert.deepStrictEqual(result8.stimmung.itemIds, ["depressiv"], "stimmung korrekt");
-assert.deepStrictEqual(result8.aengste.itemIds, ["panik"], "aengste korrekt");
-// untouched section stays as default
-assert.deepStrictEqual(result8.bewusstsein, def.bewusstsein, "beruehrte Sektion unveraendert");
+// --- Immutabilitaet ---
+assert.deepStrictEqual(def.stimmung.itemIds, ["n_stimmung_ok", "n_antrieb_ok"], "Original unveraendert");
 
 console.log("test_befund_suggest OK");

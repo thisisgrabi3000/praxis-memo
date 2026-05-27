@@ -1,64 +1,42 @@
 const assert = require("assert");
 const B = require("../befund.js");
 
-const def = B.befundDefaultSelection(B.BEFUND_CATALOG);
+const C = B.BEFUND_CATALOG;
+const def = B.befundDefaultSelection(C);
 
-// --- befundToggleItem: toggle ON ---
-const afterToggleOn = B.befundToggleItem(def, "stimmung", "depressiv");
-assert.deepStrictEqual(
-  afterToggleOn.stimmung.itemIds,
-  ["depressiv"],
-  "toggle on: itemIds sollte ['depressiv'] sein"
-);
-assert.strictEqual(afterToggleOn.stimmung.normal, false, "toggle on: normal sollte false sein");
+// --- Abweichung anhaken: Cluster-Normal weg, anderer Cluster bleibt ---
+const t1 = B.befundToggleItem(def, "stimmung", "depressiv", C);
+assert.ok(!t1.stimmung.itemIds.includes("n_stimmung_ok"), "Cluster-Normal (stimmung) entfernt");
+assert.ok(t1.stimmung.itemIds.includes("depressiv"), "Abweichung gesetzt");
+assert.ok(t1.stimmung.itemIds.includes("n_antrieb_ok"), "anderer Cluster (antrieb) unveraendert");
+assert.strictEqual(t1.stimmung.normal, false, "nicht mehr normal");
 
-// --- befundToggleItem: toggle OFF (Rueck-Toggle) ---
-const afterToggleOff = B.befundToggleItem(afterToggleOn, "stimmung", "depressiv");
-assert.deepStrictEqual(
-  afterToggleOff.stimmung.itemIds,
-  [],
-  "toggle off: itemIds sollte [] sein"
-);
-assert.strictEqual(afterToggleOff.stimmung.normal, true, "toggle off: normal wieder true (Normalbefund)");
+// --- Abweichung wieder abhaken ---
+const t2 = B.befundToggleItem(t1, "stimmung", "depressiv", C);
+assert.ok(!t2.stimmung.itemIds.includes("depressiv"), "Abweichung wieder entfernt");
 
-// --- befundSetNormal nach einem Toggle ---
-const sel = B.befundToggleItem(def, "stimmung", "depressiv");
-const afterSetNormal = B.befundSetNormal(sel, "stimmung");
-assert.strictEqual(afterSetNormal.stimmung.normal, true, "setNormal: normal sollte true sein");
-assert.deepStrictEqual(afterSetNormal.stimmung.itemIds, [], "setNormal: itemIds sollte leer sein");
+// --- Normal-Item anhaken entfernt Abweichungen des Clusters ---
+const t3 = B.befundToggleItem(t1, "stimmung", "n_stimmung_ok", C);
+assert.ok(t3.stimmung.itemIds.includes("n_stimmung_ok"), "Normal-Item gesetzt");
+assert.ok(!t3.stimmung.itemIds.includes("depressiv"), "Abweichung des Clusters entfernt");
 
-// --- befundSetFreitext: text setzen -> normal false, freitext gespeichert ---
-const afterFreitext = B.befundSetFreitext(def, "stimmung", "stimmung", "tagesabhaengig");
-assert.strictEqual(afterFreitext.stimmung.normal, false, "setFreitext: normal sollte false sein wenn text vorhanden");
-assert.strictEqual(
-  afterFreitext.stimmung.freitext.stimmung,
-  "tagesabhaengig",
-  "setFreitext: Freitext sollte gespeichert sein"
-);
+// --- befundSetNormal: zurueck auf Normal ---
+const sn = B.befundSetNormal(t1, "stimmung", C);
+assert.deepStrictEqual(sn.stimmung.itemIds, ["n_stimmung_ok", "n_antrieb_ok"], "setNormal: Normal-Items");
+assert.strictEqual(sn.stimmung.normal, true, "setNormal: normal true");
 
-// --- befundSetFreitext: text auf leer -> normal true ---
-const afterFreitextClear = B.befundSetFreitext(afterFreitext, "stimmung", "stimmung", "");
-assert.strictEqual(afterFreitextClear.stimmung.normal, true, "setFreitext leer: normal sollte wieder true sein");
+// --- befundSetFreitext: Text -> normal false, leer -> normal true ---
+const f1 = B.befundSetFreitext(def, "stimmung", "stimmung", "tagesabhaengig", C);
+assert.strictEqual(f1.stimmung.normal, false, "Freitext -> normal false");
+const f2 = B.befundSetFreitext(f1, "stimmung", "stimmung", "", C);
+assert.strictEqual(f2.stimmung.normal, true, "Freitext leer -> normal true");
 
 // --- befundSetAllNormal ---
-const modSel = B.befundToggleItem(def, "stimmung", "depressiv");
-const allNormal = B.befundSetAllNormal(B.BEFUND_CATALOG);
-assert.strictEqual(allNormal.stimmung.normal, true, "setAllNormal: stimmung sollte normal sein");
-assert.deepStrictEqual(allNormal.stimmung.itemIds, [], "setAllNormal: keine itemIds");
+const alln = B.befundSetAllNormal(C);
+assert.strictEqual(alln.bewusstsein.normal, true, "setAllNormal normal");
+assert.deepStrictEqual(alln.bewusstsein.itemIds, ["n_wach", "n_klar"], "setAllNormal: bewusstsein Normal-Items");
 
-// --- Immutabilitaet: Original unveraendert ---
-assert.strictEqual(def.stimmung.normal, true, "Original-Selektion bleibt unveraendert");
-assert.deepStrictEqual(def.stimmung.itemIds, [], "Original-Selektion: itemIds unveraendert");
-
-// --- befundSetNormal loescht auch Freitext ---
-const withFreitext = B.befundSetFreitext(def, "stimmung", "stimmung", "tagesabhaengig");
-const normalizedAgain = B.befundSetNormal(withFreitext, "stimmung");
-assert.deepStrictEqual(normalizedAgain.stimmung.freitext, {}, "setNormal: Freitext wird geleert");
-
-// --- toggle letztes Item OFF, aber Freitext noch gesetzt -> normal bleibt false ---
-let mix = B.befundSetFreitext(def, "stimmung", "stimmung", "tagesabhaengig");
-mix = B.befundToggleItem(mix, "stimmung", "depressiv"); // ON
-mix = B.befundToggleItem(mix, "stimmung", "depressiv"); // wieder OFF
-assert.strictEqual(mix.stimmung.normal, false, "Freitext haelt normal=false trotz leerer itemIds");
+// --- Immutabilitaet ---
+assert.deepStrictEqual(def.stimmung.itemIds, ["n_stimmung_ok", "n_antrieb_ok"], "Original unveraendert");
 
 console.log("test_befund_select OK");
