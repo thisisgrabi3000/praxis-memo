@@ -8,6 +8,7 @@ const item = app.addOpenPoint(patient, "  Medikamente mit Hausarzt klären  ");
 assert.ok(item, "Eintrag zurückgegeben");
 assert.strictEqual(item.origin, "manuell");
 assert.strictEqual(item.status, "offen");
+assert.strictEqual(item.relevance, "normal");
 assert.strictEqual(item.text, "Medikamente mit Hausarzt klären", "getrimmt");
 assert.ok(item.sourceDate, "Datum gesetzt");
 assert.strictEqual(patient.memory.openQuestions[0].id, item.id, "in openQuestions abgelegt");

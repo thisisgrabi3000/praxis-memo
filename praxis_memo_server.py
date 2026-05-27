@@ -32,7 +32,26 @@ MAX_AUDIO_BYTES = 50 * 1024 * 1024  # 50 MB hard cap
 # and VCS metadata under the app root must never be reachable via the browser.
 STATIC_ALLOWLIST = {"index.html", "app.js", "befund.js", "styles.css"}
 
-WHISPER_MODEL_NAME = "base"
+WHISPER_MODEL_NAME = "small"
+# Fachbegriffs-Kontext für Whisper: stupst das Modell, psychotherapeutische
+# Fachwörter korrekt zu schreiben (z.B. "Aufwachattacken" statt "Auffach-Attacken").
+# Enthält bewusst NUR generische Fachbegriffe, KEINE Patientendaten. Kurz halten:
+# zu lange Prompts werden abgeschnitten und erhöhen das Halluzinationsrisiko.
+WHISPER_INITIAL_PROMPT = (
+    "Psychotherapeutische Sitzungsnotiz. Häufige Fachbegriffe: "
+    "Panikstörung, Agoraphobie, generalisierte Angststörung, soziale Phobie, "
+    "Depression, depressive Episode, Zwangsstörung, posttraumatische "
+    "Belastungsstörung, PTBS, Trauma, Burnout, Anpassungsstörung, Essstörung, "
+    "Persönlichkeitsstörung, Borderline, ADHS, bipolare Störung; "
+    "Panikattacken, nächtliche Aufwachattacken, Herzrasen, ohnmächtig, Grübeln, "
+    "Schlafstörungen, Anspannung, Flashbacks, Dissoziation, Vermeidungsverhalten, "
+    "Suizidgedanken, Schutzfaktoren, Ressourcen, Trigger; "
+    "kognitive Verhaltenstherapie, Schematherapie, tiefenpsychologisch, "
+    "Expositionsübung, Konfrontation, Reizkontrolle, progressive "
+    "Muskelentspannung, Achtsamkeit, Bauchatmung, Psychoedukation, EMDR, "
+    "Teufelskreismodell, Angsttagebuch, Wochenprotokoll, Wiedereingliederung, "
+    "Therapieziel, Folgetermin, Probatorik."
+)
 OLLAMA_BASE = "http://127.0.0.1:11434"
 DEFAULT_OLLAMA_MODEL = "qwen2.5:3b"
 ALLOWED_MODELS = {"qwen2.5:3b", "qwen2.5:7b"}
@@ -109,7 +128,10 @@ def transcribe_audio(audio_bytes: bytes, content_type: str) -> str:
     tmp_path.write_bytes(audio_bytes)
 
     try:
-        segments, _ = model.transcribe(str(tmp_path), language="de", beam_size=5)
+        segments, _ = model.transcribe(
+            str(tmp_path), language="de", beam_size=5,
+            initial_prompt=WHISPER_INITIAL_PROMPT,
+        )
         return " ".join(seg.text.strip() for seg in segments).strip()
     finally:
         try:
@@ -195,10 +217,15 @@ def _structure_messages(transcript: str, patient_id: str = "") -> list:
         "gar keines. Wenn eine fremde Patienten-ID nur zur Abgrenzung oder Negation genannt wird "
         "(z.B. 'kein Bezug zu P-007'), ignoriere diese fremde ID vollständig und nimm sie nicht "
         "in offene Fragen oder Beobachtungen auf.\n"
+        "WICHTIG: Übernimm Fachbegriffe und Abkürzungen aus der Nachnotiz wörtlich "
+        "(z.B. ADHS, Schematherapie, progressive Muskelentspannung). Übersetze oder "
+        "verändere diese Begriffe nicht.\n"
         "WICHTIG: Stelle KEINE Diagnosen und triff KEINE Therapieentscheidungen. Halte klar "
         "auseinander, was der Patient berichtet, was als offene Frage/Hypothese formuliert ist, "
         "was vereinbart wurde und welche Risiken/Schutzfaktoren beobachtet werden sollen. "
-        "Unsicherheit muss als Unsicherheit erhalten bleiben.\n"
+        "Unsicherheit muss als Unsicherheit erhalten bleiben. Empfiehl keine Facharztkontakte, "
+        "Überweisungen, Klinik-/Notaufnahme-/Einweisungswege, Medikationsänderungen oder andere "
+        "Versorgungsschritte, wenn sie nicht wörtlich in der Nachnotiz genannt wurden.\n"
         "WICHTIG: In 'resolved' NUR Punkte aufnehmen, die wörtlich aus den bereits offenen "
         "Punkten im Kontext stammen und in dieser Nachnotiz klar behandelt wurden. Im Zweifel "
         "leer lassen — niemals neue Punkte erfinden.\n\n"
@@ -238,6 +265,66 @@ def _extract_json(content: str) -> dict:
     return parsed
 
 
+STRUCTURE_TEXT_KEYS = ("core", "agreement", "open", "watch")
+
+
+def _as_structure_text(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return _strip_cjk(value)
+    if isinstance(value, list):
+        parts = [_as_structure_text(item) for item in value]
+        return "\n".join(part for part in parts if part)
+    if isinstance(value, dict):
+        return _strip_cjk(json.dumps(value, ensure_ascii=False))
+    return _strip_cjk(str(value))
+
+
+def _normalize_structure_result(parsed: dict) -> dict:
+    """Make model output match the front-end contract even if JSON mode returns lists."""
+    if not isinstance(parsed, dict):
+        return parsed
+    normalized = dict(parsed)
+    for key in STRUCTURE_TEXT_KEYS:
+        normalized[key] = _as_structure_text(parsed.get(key, ""))
+
+    resolved = parsed.get("resolved", [])
+    resolved_items = resolved if isinstance(resolved, list) else [resolved]
+    normalized["resolved"] = [
+        text for text in (_as_structure_text(item) for item in resolved_items) if text
+    ]
+    return normalized
+
+
+def _preserve_source_terms(parsed: dict, transcript: str) -> dict:
+    if not isinstance(parsed, dict):
+        return parsed
+
+    replacements: list[tuple[re.Pattern, str]] = []
+    source = transcript or ""
+    if re.search(r"\bADHS\b", source, re.IGNORECASE) and not re.search(r"\bADHD\b", source, re.IGNORECASE):
+        replacements.append((re.compile(r"\bADHD\b", re.IGNORECASE), "ADHS"))
+    if re.search(r"schematherapeut|schematherapie", source, re.IGNORECASE):
+        replacements.append((re.compile(r"\bszenatherapeut(\w*)", re.IGNORECASE), r"schematherapeut\1"))
+        replacements.append((re.compile(r"\bszenatherapie\b", re.IGNORECASE), "Schematherapie"))
+
+    if not replacements:
+        return parsed
+
+    def fix_text(value: str) -> str:
+        fixed = value
+        for pattern, replacement in replacements:
+            fixed = pattern.sub(replacement, fixed)
+        return fixed
+
+    normalized = dict(parsed)
+    for key in STRUCTURE_TEXT_KEYS:
+        normalized[key] = fix_text(str(normalized.get(key, "")))
+    normalized["resolved"] = [fix_text(str(item)) for item in normalized.get("resolved", [])]
+    return normalized
+
+
 def _validate_patient_ids(parsed: dict, patient_id: str) -> None:
     if not patient_id:
         return
@@ -248,6 +335,30 @@ def _validate_patient_ids(parsed: dict, patient_id: str) -> None:
         raise RuntimeError(
             "KI-Antwort enthält fremde Patientenkürzel: "
             + ", ".join(foreign_ids)
+            + ". Strukturierung wurde aus Sicherheitsgründen nicht gespeichert."
+        )
+
+
+UNSUPPORTED_CARE_PATTERNS = {
+    "Facharzt": r"\bfacharzt\b|\bfachärzt\w*",
+    "Überweisung": r"\büberweis\w*|\bueberweis\w*",
+    "Medikation": r"\bmedikation\b|\bmedikament\w*|\bmedikamentös\w*|\bmedikamentoes\w*",
+    "Klinik/Einweisung": r"\bklinik\w*|\bstationär\w*|\bstationaer\w*|\bnotaufnahme\b|\beinweisung\w*",
+}
+
+
+def _validate_care_recommendations(parsed: dict, transcript: str) -> None:
+    output_text = " ".join(str(parsed.get(key, "")) for key in STRUCTURE_TEXT_KEYS)
+    unsupported = [
+        label
+        for label, pattern in UNSUPPORTED_CARE_PATTERNS.items()
+        if re.search(pattern, output_text, re.IGNORECASE)
+        and not re.search(pattern, transcript or "", re.IGNORECASE)
+    ]
+    if unsupported:
+        raise RuntimeError(
+            "KI-Antwort enthält nicht belegte Versorgungs-/Therapieempfehlungen: "
+            + ", ".join(unsupported)
             + ". Strukturierung wurde aus Sicherheitsgründen nicht gespeichert."
         )
 
@@ -278,7 +389,10 @@ def structure_via_ollama(transcript: str, patient_id: str = "") -> dict:
 
     content = (response_data.get("message") or {}).get("content", "").strip()
     parsed = _extract_json(content)
+    parsed = _normalize_structure_result(parsed)
+    parsed = _preserve_source_terms(parsed, transcript)
     _validate_patient_ids(parsed, patient_id)
+    _validate_care_recommendations(parsed, transcript)
     return parsed
 
 
@@ -400,11 +514,15 @@ def today_folder() -> Path:
     return BACKUP_DIR / datetime.now().strftime("%Y-%m-%d")
 
 
-def read_json(path: Path, fallback):
+def read_json(path: Path, fallback, *, strict: bool = False):
     try:
         with path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
-    except (FileNotFoundError, json.JSONDecodeError):
+    except FileNotFoundError:
+        return fallback
+    except json.JSONDecodeError:
+        if strict:
+            raise
         return fallback
 
 
@@ -477,7 +595,7 @@ def prune_backups() -> None:
 
 
 def load_payload():
-    return read_json(DATA_FILE, {})
+    return read_json(DATA_FILE, {}, strict=True)
 
 
 def save_payload(payload) -> None:
@@ -560,7 +678,15 @@ class PraxisMemoHandler(BaseHTTPRequestHandler):
         path = urllib.parse.urlparse(self.path).path
 
         if path == "/api/load":
-            payload = load_payload()
+            try:
+                payload = load_payload()
+            except json.JSONDecodeError:
+                logger.exception("Datenfile ist kein gültiges JSON")
+                self.send_json(500, {
+                    "ok": False,
+                    "error": "Datenfile beschädigt. Bitte aus Backup wiederherstellen; automatisches Überschreiben wurde verhindert."
+                })
+                return
             self.send_json(200, payload if payload else {"patients": None})
             return
 
@@ -655,7 +781,11 @@ class PraxisMemoHandler(BaseHTTPRequestHandler):
 
         if path == "/api/backup":
             if not isinstance(payload.get("patients"), list):
-                payload = load_payload()
+                try:
+                    payload = load_payload()
+                except json.JSONDecodeError:
+                    self.send_json(500, {"ok": False, "error": "Datenfile beschädigt. Backup bitte aus vorhandenen Sicherungen wiederherstellen."})
+                    return
             if not isinstance(payload.get("patients"), list):
                 self.send_json(400, {"ok": False, "error": "No data to back up"})
                 return

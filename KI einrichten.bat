@@ -121,9 +121,9 @@ REM Schritt 4: Diktat-Modell vorladen
 REM ============================================================
 echo.
 echo ------------------------------------------------
-echo Schritt 4: Diktat-Modell vorladen (ca. 150 MB)
+echo Schritt 4: Diktat-Modell vorladen (ca. 500 MB)
 echo ------------------------------------------------
-%PY_EXE% -c "from faster_whisper import WhisperModel; WhisperModel('base', device='cpu', compute_type='int8'); print('OK')"
+%PY_EXE% -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8'); print('OK')"
 if %errorlevel% neq 0 (
     echo.
     echo WARNUNG: Diktat-Modell konnte nicht vorgeladen werden.

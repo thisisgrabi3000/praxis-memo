@@ -23,7 +23,7 @@ Es gibt zwei Diktierwege:
 - globales Diktat im Schritt „Einsprechen“ für das Transkript
 - kleine Mikrofonbuttons direkt an jedem editierbaren Feld, um fehlende Inhalte gezielt nachzudiktieren
 
-Voraussetzung ist, dass `faster-whisper` installiert ist (über `KI einrichten.bat`). Ohne Installation zeigt die App eine klare Meldung, ein Cloud-Fallback existiert bewusst nicht.
+Voraussetzung ist, dass `faster-whisper` installiert ist (über `KI einrichten.bat`). Die App nutzt für Diktat standardmäßig das lokale Whisper-Modell `small`, weil `base` in realistischen Therapietexten zu viele fachlich relevante Transkriptionsfehler gemacht hat. Ohne Installation zeigt die App eine klare Meldung, ein Cloud-Fallback existiert bewusst nicht.
 
 ## Speicherung
 

@@ -85,6 +85,15 @@
             <p class="muted" id="patientMeta">Kein Patient ausgewählt</p>
           </div>
           <div class="top-actions">
+            <label class="top-select-label">
+              <span>Fallstatus</span>
+              <select id="caseStatusSelect" class="status-select" aria-label="Fallstatus">
+                <option value="aktiv">Aktiv</option>
+                <option value="pausiert">Pausiert</option>
+                <option value="abgeschlossen">Abgeschlossen</option>
+                <option value="archiviert">Archiviert</option>
+              </select>
+            </label>
             <button class="quiet-action" type="button" id="archivePatientButton" title="Archivieren">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M21 8V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"></path>
@@ -101,6 +110,15 @@
                 <path d="M8 17h5"></path>
               </svg>
               Akte drucken
+            </button>
+            <button class="quiet-action export-action" type="button" id="workExportPatientButton" title="Arbeitsnotiz mit Entwürfen und Rohtext öffnen">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 4h16v16H4z"></path>
+                <path d="M8 8h8"></path>
+                <path d="M8 12h8"></path>
+                <path d="M8 16h5"></path>
+              </svg>
+              Arbeitsnotiz
             </button>
             <button class="soft-action new-session-action" type="button" id="newSessionButton">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -144,6 +162,7 @@
         </nav>
 
         <section class="quick-prep" id="quickPrep" aria-label="Schnellblick für die nächste Sitzung"></section>
+        <section class="risk-alerts" id="riskAlerts" aria-label="Aktive Hinweise"></section>
 
         <section class="empty-workspace" aria-label="Start ohne Patient">
           <div>
@@ -298,6 +317,23 @@
               <label class="field">
                 <span>Vorsicht / fachlich prüfen</span>
                 <textarea data-prep="caution" rows="4"></textarea>
+              </label>
+            </article>
+
+            <article class="panel closure-panel">
+              <p class="eyebrow">Fallabschluss</p>
+              <h3>Abschlussnotiz</h3>
+              <label class="field important-field">
+                <span>Fallzusammenfassung</span>
+                <textarea data-closure="summary" rows="4"></textarea>
+              </label>
+              <label class="field">
+                <span>Stand bei Abschluss</span>
+                <textarea data-closure="outcome" rows="4"></textarea>
+              </label>
+              <label class="field">
+                <span>Empfehlung / Wiedervorstellung</span>
+                <textarea data-closure="recommendation" rows="4"></textarea>
               </label>
             </article>
 

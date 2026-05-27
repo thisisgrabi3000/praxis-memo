@@ -1,11 +1,44 @@
 # Praxis Memo — Übergabedokument
 
-Letzte Aktualisierung: 2026-05-22  
+Letzte Aktualisierung: 2026-05-24
 Kontext: Lokale Web-App für eine Psychotherapeutin (Miriam), entwickelt auf macOS, Zielplattform Windows-PC im Praxisbetrieb.
 
 ---
 
 ## 0. Änderungsprotokoll
+
+### 2026-05-24 — Smoke-Test-Härtung + Unterlagen für Miriam-Test
+
+Kontext: Gezielt getesteter aktueller Stand mit **ausschließlich fiktiven/temporären Daten**. Keine echten Daten aus `data/` gelesen, verändert oder überschrieben. Für Miriam weiter mit **`qwen2.5:3b` planen**, weil ihr Praxis-PC sehr wahrscheinlich nur damit realistisch läuft; `qwen2.5:7b` ist optionaler Status-/Absicherungsfall, keine Deploy-Voraussetzung.
+
+**Gefundene und direkt klein behobene Befunde:**
+- Diktatqualität: `faster-whisper base` war im realistischen Testdiktat fachlich nicht ausreichend (zentrale Wörter wie „ohnmächtig“, „Angsttagebuch“, „Aufwachattacken“ wurden stark verfälscht). `small` war deutlich näher am Original und nur noch manuell nachzukorrigieren. Fix: App-Default und `KI einrichten.bat` auf Whisper `small` umgestellt; beim nächsten Installieren wird `small` vorgeladen.
+- Server-Strukturierung: `qwen2.5:3b` lieferte real teils Arrays statt Strings für `open`/`watch`. Risiko: Frontend verwirft fachlich nutzbare Strukturierungen als „unvollständig“. Fix: `_normalize_structure_result()` wandelt `core/agreement/open/watch` robust in Strings und `resolved` in eine String-Liste.
+- Fachliche Härtung: Depressions-/Risiko-Testfall erzeugte unbelegt „Facharzt“-/Versorgungsformulierung. Risiko: nicht belegte Versorgungsschritte oder Therapieempfehlungen landen in der Doku. Fix: Prompt geschärft und Server-/Frontend-Validierung blockiert nicht im Transkript belegte Begriffe zu Facharzt, Überweisung, Medikation, Klinik/Einweisung.
+- Begriffstreue für kleines Modell: `ADHS` wurde von `3b` zu `ADHD`, Schematherapie einmal verformt. Fix: Prompt-Anweisung plus serverseitige Begriffserhaltung für ADHS/Schematherapie, wenn diese Begriffe im Quelltranskript stehen.
+- Packaging: `Paket erstellen.bat` packt jetzt `VERSION` ins ZIP; lokale `VERSION` auf `1.0.8` gesetzt.
+
+**Neue/aktualisierte Dateien für Claude Code vor Deploy:**
+- Code: `praxis_memo_server.py`, `app.js`, `Paket erstellen.bat`, `VERSION`.
+- Tests: `tests/test_structure_result_normalization.py`, `tests/test_frontend_workflow_smoke.js`.
+- PDFs für den gemeinsamen Mac-Test mit Miriam:
+  - `docs/Morgen-Test-Ablauf-Mac.pdf` — Ablauf/Setup für den Testmorgen, inkl. 3b, Whisper-Python, Testordner, Mikrofon/iPhone-Hinweis, Troubleshooting.
+  - `docs/Praxis-Memo-Funktionsbeschreibung-Miriam.pdf` — ausführliche App-Beschreibung für Miriam: Workflow, Strukturierung, Prüfpflicht, Archiv, Verlaufsbuch, offene Punkte, Memory/Register, Backup, Export, typische Probleme.
+
+**Verifikation am 2026-05-24:**
+- Grün: `python3 -m py_compile praxis_memo_server.py`, `node --check app.js`.
+- Grün: `python3 tests/test_active_model.py`, `python3 tests/test_ollama_available.py`, `python3 tests/test_structure_result_normalization.py`, `node tests/test_frontend_workflow_smoke.js`.
+- Grün: alle vorhandenen relevanten Node-Tests (`test_memory_*`, `test_history_*`, `test_resolve_suggestions`, `test_followup_reminder`, `test_patient_export`) und `bash tests/test_structure_status.sh`.
+- Realer isolierter HTTP-Smoke aus `/private/tmp`: `/api/status`, `/api/load`, `/api/save`, `/api/backup`, `/api/structure-status`, `/api/structure`; private Pfade `data/*`, `backups/`, `.git/config`, `praxis_memo_server.py` jeweils `403`; Host-/Origin-/Sec-Fetch-Guards `403`.
+- Ollama lokal: installiert/verfügbar war `qwen2.5:3b`; `qwen2.5:7b` nicht installiert und korrekt als aktiv, aber nicht verfügbar gemeldet, wenn per Modell-Datei gesetzt.
+- Whisper: System-`python3` hat kein `faster_whisper`; vorhandene Testumgebung `/private/tmp/praxismemo-whisper-venv/bin/python` lädt `faster_whisper`. `WhisperModel("small", device="cpu", compute_type="int8")` wurde lokal erfolgreich getestet; isolierter Server meldete `/api/transcribe-status` = `{"available": true}`.
+- PDFs wurden mit ReportLab erzeugt, per `pypdf` auf Seiten/Text geprüft und per QuickLook-Vorschau der ersten Seite visuell kontrolliert.
+
+**Pre-Deploy-Hinweise:**
+- Vor Deploy unbedingt aktuellen Git-Status prüfen. Unrelated lokale Dateien `Ehrliche Einschätzung.rtf` und `beispiel texte.rtf` sind untracked und gehören nicht ins Release.
+- Die PDFs sind Doku-/Testunterlagen, nicht zwingend Runtime-ZIP. Das Runtime-ZIP aus `Paket erstellen.bat` enthält weiterhin App-Dateien, Modell-BATs, README_PC_INSTALLATION und jetzt `VERSION`, aber **keine** `data/`, **keine** Patientendaten, **keine** Backups.
+- Vor-Ort/Windows weiterhin offen: echtes Mikrofon/Whisper `small` auf dem Praxis-PC, Doppelklick-BATs, ZIP-Erstellung auf Windows, Performanceprobe mit `qwen2.5:3b`.
+- Doku-/PDF-Texte für Miriam bitte mit echten deutschen Umlauten und `ß` schreiben (`ä/ö/ü/Ä/Ö/Ü/ß`), nicht mit Ersatzformen wie `ae/oe/ue/ss`. Code/Dateinamen nur ändern, wenn technisch unproblematisch.
 
 ### 2026-05-22 — Verlaufsbuch & abhakbare offene Punkte (Release v1.0.8)
 
@@ -138,7 +171,7 @@ Nicht primär psychiatrische Medikation testen, sondern psychotherapeutische Ver
 - `index.html` + `styles.css` + `app.js` — reines Vanilla-JS, kein Framework, kein Build-Step
 - `praxis_memo_server.py` — Python-Standardbibliothek HTTP-Server (`ThreadingHTTPServer`), läuft lokal auf `127.0.0.1:3000`
 - Start über `Start Praxis Memo.bat` (Windows), öffnet Browser automatisch
-- KI lokal via [Ollama](https://ollama.com) (`qwen2.5:3b`) + [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (`base`)
+- KI lokal via [Ollama](https://ollama.com) (`qwen2.5:3b`) + [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (`small`)
 - Einrichtung via `KI einrichten.bat` (Ein-Klick)
 
 **Datenpfade:**
@@ -259,7 +292,7 @@ Python-Server (praxis_memo_server.py)
   ├── Daten atomar schreiben (os.replace via .tmp)
   ├── Auto-Backup alle 30 Min (on-save-trigger)
   ├── Backup-Pruning: max. 30/Tag, 90 Tage Aufbewahrung
-  ├── Whisper-Transkription (faster-whisper "base", lazy-loaded, gecacht)
+  ├── Whisper-Transkription (faster-whisper "small", lazy-loaded, gecacht)
   ├── Ollama-Proxy (qwen2.5:3b → /api/chat)
   ├── Audio-Temp in data/tmp/ (beim Start gesäubert, max 50 MB pro Aufnahme)
   └── Fehler-Log in data/server.log
@@ -293,7 +326,7 @@ Ollama (separater lokaler Dienst auf 127.0.0.1:11434)
 - Temp-Datei wird beim Server-Start ge-`unlink`-t und nach jeder Transkription
 - Bei Patientenwechsel während laufender Aufnahme/Transkription: Die Patienten-UID wird beim **Aufnahmestart** in `startMediaRecordingForField()` festgehalten und an `sendAudioForTranscription()` durchgereicht. Der Text landet dadurch immer beim ursprünglichen Patienten (`lockedPatientUid`)
 
-**Whisper-Modell:** `base` (~150 MB). `small` war zu langsam auf Praxis-Hardware. `base` reicht für Deutsch in ruhiger Umgebung.
+**Whisper-Modell:** `small` (~500 MB). `base` war zwar schneller, machte im realistischen Therapiediktat aber zu viele fachlich relevante Fehler. `small` bleibt prüfpflichtig, war im Test aber deutlich näher am Original.
 
 **Wo im Code:**
 - Browser: `checkWhisperAvailability()`, `startMediaRecordingForField()`, `sendAudioForTranscription()`, `stopDictation()`
@@ -398,7 +431,7 @@ Jede geprüfte Sitzung wird in `patient.sessions[]` archiviert. `Neue Sitzung` l
 - **Patientenakte-Export:** Button `Akte drucken` öffnet für den ausgewählten Patienten eine lokale HTML-Druckansicht. Enthalten sind aktueller Stand, strukturierte Felder, Vorbereitung, Patientenregister, archivierte Sitzungen und frühere Versionen. PDF entsteht über den Browser-Druckdialog (`Als PDF speichern`). Fallback bei blockiertem Popup: HTML-Download.
 
 ### Bestätigt offen
-- **Miriams RAM-Angabe fehlt noch** (Intel NUC 2022, vermutlich 16 GB). Aktuell qwen2.5:3b + whisper base — läuft auch auf 8 GB. Vor einer Modellumstellung auf `qwen2.5:7b` auf dem NUC `PC KI Leistung pruefen.bat` ausführen und `data/pc-ki-check.txt` prüfen. Faustregel im Skript: ab 16 GB `7b` testbar, 12-15 GB eingeschränkt, unter 12 GB nicht empfohlen.
+- **Miriams RAM-Angabe fehlt noch** (Intel NUC 2022, vermutlich 16 GB). Aktuell qwen2.5:3b + Whisper `small` testen. Vor einer Modellumstellung auf `qwen2.5:7b` auf dem NUC `PC KI Leistung pruefen.bat` ausführen und `data/pc-ki-check.txt` prüfen. Faustregel im Skript: ab 16 GB `7b` testbar, 12-15 GB eingeschränkt, unter 12 GB nicht empfohlen.
 - **Kein Import aus Psyprax.** Psyprax hat keinen bekannten direkten Datenexport für Termine. Wenn sich das ändert, wäre ein `.ics`-Reader der naheliegende Ansatz (Datei in `data/calendar.ics` legen, App liest alle 5 Min).
 
 ### Empfohlen

@@ -34,7 +34,7 @@ if exist "data\praxismemo-data.json" (
 
 REM Backup der alten App-Dateien (falls Code-Update fehlschlaegt -> Rollback moeglich)
 if not exist "backups\vor-update\code-!BACKUP_STAMP!" mkdir "backups\vor-update\code-!BACKUP_STAMP!"
-for %%F in (app.js index.html styles.css praxis_memo_server.py VERSION) do (
+for %%F in (app.js index.html styles.css befund.js praxis_memo_server.py VERSION) do (
     if exist "%%F" copy /Y "%%F" "backups\vor-update\code-!BACKUP_STAMP!\%%F" >nul
 )
 echo Code-Backup: backups\vor-update\code-!BACKUP_STAMP!\
@@ -64,7 +64,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
 if %errorlevel% neq 0 (
     echo.
     echo WARNUNG: Entpacken fehlgeschlagen. App-Code wird aus Backup wiederhergestellt.
-    for %%F in (app.js index.html styles.css praxis_memo_server.py VERSION) do (
+    for %%F in (app.js index.html styles.css befund.js praxis_memo_server.py VERSION) do (
         if exist "backups\vor-update\code-!BACKUP_STAMP!\%%F" copy /Y "backups\vor-update\code-!BACKUP_STAMP!\%%F" "%%F" >nul
     )
     goto :skip_code_update
