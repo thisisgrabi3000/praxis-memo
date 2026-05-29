@@ -211,6 +211,7 @@ function normalizeSession(s = {}) {
 let patients = loadPatients();
 let selectedUid = patients[0]?.uid || null;
 let activeStep = "record";
+let viewSessionId = null;
 let isRecording = false;
 let timer = null;
 let seconds = 0;
@@ -441,6 +442,7 @@ const quickPrep = document.querySelector("#quickPrep");
 const riskAlerts = document.querySelector("#riskAlerts");
 const sessionCountBadge = document.querySelector("#sessionCountBadge");
 const historyBook = document.querySelector("#historyBook");
+const sessionViewPanel = document.querySelector("#sessionViewPanel");
 const openPoints = document.querySelector("#openPoints");
 const openCountBadge = document.querySelector("#openCountBadge");
 const openAddForm = document.querySelector("#openAddForm");
@@ -496,13 +498,6 @@ function formatNextAppointment(patient) {
   if (!patient.nextDate) return `Nächster Termin: ${patient.nextTime || "Uhrzeit offen"}`;
   const time = patient.nextTime || "Uhrzeit offen";
   return `Nächster Termin: ${formatDateLong(patient.nextDate)}, ${time}`;
-}
-
-function hasFutureFollowUp(patient) {
-  const nextDate = patient?.nextDate || "";
-  // nextDate ist YYYY-MM-DD → lexikografischer Vergleich = chronologisch.
-  // Heute zählt nicht als Zukunft: der Termin von heute ist gerade gelaufen.
-  return Boolean(nextDate) && nextDate > todayIso();
 }
 
 function formatSyncTime(value) {
@@ -592,6 +587,15 @@ function renderAll() {
   renderBefund(patient);
   renderPatients();
   setActiveStep(activeStep);
+
+  if (viewSessionId && (patient.sessions || []).some((s) => s.id === viewSessionId)) {
+    document.body.classList.add("session-viewing");
+    renderSessionViewPanel(patient);
+  } else {
+    viewSessionId = null;
+    document.body.classList.remove("session-viewing");
+    if (sessionViewPanel) sessionViewPanel.innerHTML = "";
+  }
 }
 
 // ============================================================
@@ -660,12 +664,14 @@ function renderBefund(patient) {
 
   befundPanel.innerHTML = `
     <div class="befund-topbar">
-      <button type="button" class="soft-action befund-all-normal-btn">Alles unauffällig</button>
+      <button type="button" class="soft-action befund-all-normal-btn">Normalbefund</button>
       <button type="button" class="quiet-action befund-ai-btn" id="befundAiBtn"${kiAvailable === false ? ' disabled title="KI nicht aktiv"' : ""}>KI-Vorschlag aus Notiz</button>
-      <div class="befund-preview-wrap">
-        <p class="befund-preview" id="befundPreview">${escapeHtml(fliesstext)}</p>
-      </div>
+      <span class="befund-topbar-spacer"></span>
+      <button type="button" class="quiet-action befund-preview-toggle" id="befundPreviewToggle" aria-expanded="false" aria-controls="befundPreviewWrap">Vorschau</button>
       <button type="button" class="quiet-action befund-copy-btn" id="befundCopyBtn">Kopieren</button>
+    </div>
+    <div class="befund-preview-wrap" id="befundPreviewWrap" hidden>
+      <p class="befund-preview" id="befundPreview">${escapeHtml(fliesstext)}</p>
     </div>
     <div class="befund-sections">${sectionsHtml}</div>`;
 
@@ -673,6 +679,35 @@ function renderBefund(patient) {
   befundPanel.addEventListener("click", handleBefundClick, { once: true });
   befundPanel.addEventListener("change", handleBefundChange, { once: true });
   befundPanel.addEventListener("input", handleBefundInput, { once: true });
+  befundPanel.addEventListener("keydown", handleBefundKeydown, { once: true });
+}
+
+function handleBefundKeydown(event) {
+  if (!befundPanel) return;
+  befundPanel.addEventListener("keydown", handleBefundKeydown, { once: true });
+
+  const summary = event.target.closest(".befund-summary");
+  if (!summary) return;
+  const key = event.key;
+  if (key !== "ArrowDown" && key !== "ArrowUp" && key !== "Home" && key !== "End") return;
+
+  const summaries = Array.from(befundPanel.querySelectorAll(".befund-summary"));
+  if (summaries.length === 0) return;
+  const idx = summaries.indexOf(summary);
+  let nextIdx = idx;
+  if (key === "ArrowDown") nextIdx = Math.min(idx + 1, summaries.length - 1);
+  else if (key === "ArrowUp") nextIdx = Math.max(idx - 1, 0);
+  else if (key === "Home") nextIdx = 0;
+  else if (key === "End") nextIdx = summaries.length - 1;
+  event.preventDefault();
+  if (nextIdx === idx) return;
+
+  const currentDetails = summary.closest("details.befund-section");
+  const nextDetails = summaries[nextIdx].closest("details.befund-section");
+  if (currentDetails) currentDetails.open = false;
+  if (nextDetails) nextDetails.open = true;
+  summaries[nextIdx].focus();
+  summaries[nextIdx].scrollIntoView({ block: "nearest" });
 }
 
 function updateBefundPreview(patient) {
@@ -712,9 +747,17 @@ function handleBefundClick(event) {
     return;
   }
 
-  // Kopieren
+  // Vorschau ein-/ausblenden
+  const previewToggle = event.target.closest(".befund-preview-toggle");
+  if (previewToggle) {
+    setBefundPreviewOpen(!isBefundPreviewOpen());
+    return;
+  }
+
+  // Kopieren — kopiert und blendet die Vorschau zur Bestätigung ein
   if (event.target.closest(".befund-copy-btn")) {
     const text = befundFliesstext(BEFUND_CATALOG, patient.befund);
+    setBefundPreviewOpen(true);
     if (!navigator.clipboard) {
       showToast("Kopieren in diesem Browser nicht verfügbar.");
       return;
@@ -725,6 +768,27 @@ function handleBefundClick(event) {
       showToast("Kopieren fehlgeschlagen.");
     });
     return;
+  }
+}
+
+function isBefundPreviewOpen() {
+  const wrap = befundPanel && befundPanel.querySelector("#befundPreviewWrap");
+  return !!(wrap && !wrap.hasAttribute("hidden"));
+}
+
+function setBefundPreviewOpen(open) {
+  if (!befundPanel) return;
+  const wrap = befundPanel.querySelector("#befundPreviewWrap");
+  const toggle = befundPanel.querySelector("#befundPreviewToggle");
+  if (!wrap || !toggle) return;
+  if (open) {
+    wrap.removeAttribute("hidden");
+    toggle.setAttribute("aria-expanded", "true");
+    toggle.textContent = "Vorschau ausblenden";
+  } else {
+    wrap.setAttribute("hidden", "");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.textContent = "Vorschau";
   }
 }
 
@@ -822,6 +886,17 @@ function findContentMatch(patient, query) {
     }
   }
 
+  const memory = patient.memory || {};
+  for (const bucket of Object.keys(memory)) {
+    const items = Array.isArray(memory[bucket]) ? memory[bucket] : [];
+    for (const item of items) {
+      const text = item && item.text;
+      if (text && String(text).toLowerCase().includes(query)) {
+        return { source: MEMORY_LABELS[bucket] || "Register", snippet: makeSnippet(text, query) };
+      }
+    }
+  }
+
   for (const session of patient.sessions || []) {
     const dateLabel = formatDateShort(session.date);
     if ((session.focus || "").toLowerCase().includes(query)) {
@@ -861,14 +936,19 @@ function patientButtonHtml(p, query) {
   const searchSnippet = contentHit
     ? `<span class="patient-search-hit">${escapeHtml(contentHit.source)}: ${escapeHtml(contentHit.snippet)}</span>`
     : "";
+  const isSelected = p.uid === selectedUid;
+  const sessionsBlock = isSelected ? patientSessionsHtml(p) : "";
   return `
-      <button class="patient-button${active}" type="button" data-uid="${escapeHtml(p.uid)}" data-search-hit="${contentHit ? "1" : ""}">
-        <strong>${escapeHtml(p.id)}</strong>
-        ${casePill}
-        <span class="patient-meta">${escapeHtml(appointment)}</span>
-        <span class="patient-flags">${pending}${risk}</span>
-        ${searchSnippet}
-      </button>`;
+      <div class="patient-entry${isSelected ? " is-selected" : ""}">
+        <button class="patient-button${active}" type="button" data-uid="${escapeHtml(p.uid)}" data-search-hit="${contentHit ? "1" : ""}">
+          <strong>${escapeHtml(p.id)}</strong>
+          ${casePill}
+          <span class="patient-meta">${escapeHtml(appointment)}</span>
+          <span class="patient-flags">${pending}${risk}</span>
+          ${searchSnippet}
+        </button>
+        ${sessionsBlock}
+      </div>`;
 }
 
 function renderPatients() {
@@ -901,13 +981,51 @@ function renderPatients() {
 
   patientList.querySelectorAll(".patient-button").forEach((btn) => {
     btn.addEventListener("click", () => {
-      selectedUid = btn.dataset.uid;
+      const newUid = btn.dataset.uid;
+      if (newUid !== selectedUid) viewSessionId = null;
+      selectedUid = newUid;
       stopDictation(false);
       activeStep = btn.dataset.searchHit === "1" ? "prep" : "record";
       renderAll();
     });
   });
 }
+
+function handlePatientListNav(event) {
+  if (event.target.closest(".session-nav-date-input")) return;
+  const item = event.target.closest(".session-nav-item");
+  if (!item || !patientList.contains(item)) return;
+  patientList.querySelectorAll(".session-nav-item.is-current").forEach((el) => el.classList.remove("is-current"));
+  item.classList.add("is-current");
+  navigateToSession(item.dataset.sessionId);
+}
+
+function handlePatientListSessionDateChange(event) {
+  const input = event.target.closest(".session-nav-date-input");
+  if (!input || !patientList.contains(input)) return;
+  const patient = getPatient();
+  if (!patient) return;
+  const sid = input.dataset.sessionId;
+  const session = (patient.sessions || []).find((s) => s.id === sid);
+  if (!session) return;
+  session.date = input.value || "";
+  patient.sessions = sortSessions(patient.sessions);
+  savePatients();
+  renderAll();
+}
+
+function handlePatientListKeydown(event) {
+  if (event.target.classList?.contains("session-nav-date-input")) return;
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const item = event.target.closest(".session-nav-item");
+  if (!item || !patientList.contains(item)) return;
+  event.preventDefault();
+  item.click();
+}
+
+patientList.addEventListener("click", handlePatientListNav);
+patientList.addEventListener("change", handlePatientListSessionDateChange);
+patientList.addEventListener("keydown", handlePatientListKeydown);
 
 function patientDateGroupHtml(date, group, query) {
   const hasDate = date !== "0000";
@@ -985,6 +1103,25 @@ function sortSessions(sessions) {
   });
 }
 
+// Chronologische Nummer (1-basiert): aelteste Sitzung = 1.
+// Sitzungen ohne Datum landen am Ende, in Anlage-Reihenfolge.
+function computeSessionNumber(patient, sessionId) {
+  if (!patient || !sessionId) return null;
+  const sessions = Array.isArray(patient.sessions) ? patient.sessions : [];
+  const indexed = sessions.map((s, i) => ({ s, i }));
+  indexed.sort((a, b) => {
+    const aHas = !!a.s.date;
+    const bHas = !!b.s.date;
+    if (aHas !== bHas) return aHas ? -1 : 1;
+    if (!aHas) return a.i - b.i;
+    const aKey = `${a.s.date}T${a.s.time || "00:00"}`;
+    const bKey = `${b.s.date}T${b.s.time || "00:00"}`;
+    return aKey.localeCompare(bKey);
+  });
+  const idx = indexed.findIndex((x) => x.s.id === sessionId);
+  return idx >= 0 ? idx + 1 : null;
+}
+
 function getLastCheckedSession(patient) {
   const sorted = sortSessions(patient.sessions || []);
   return sorted.find((s) => isCheckedStatus(s.status)) || sorted[0] || null;
@@ -1047,10 +1184,6 @@ function renderQuickPrep(patient) {
     </div>
     <div class="quick-prep-grid">
       <article>
-        <span>Termin</span>
-        <strong>${escapeHtml(formatNextAppointment(patient))}</strong>
-      </article>
-      <article>
         <span>Anknüpfen</span>
         <strong>${escapeHtml(anchor || latestLabel)}</strong>
       </article>
@@ -1061,6 +1194,10 @@ function renderQuickPrep(patient) {
       <article class="${caution ? "has-signal" : ""}">
         <span>Vorsicht</span>
         <strong>${escapeHtml(caution || "Keine Warnhinweise dokumentiert")}</strong>
+      </article>
+      <article>
+        <span>Termin</span>
+        <strong>${escapeHtml(formatNextAppointment(patient))}</strong>
       </article>
     </div>`;
 }
@@ -1094,11 +1231,17 @@ function renderSessionDetails(s) {
         <p>${escapeHtml(befundText)}</p>
       </div>`
     : "";
+  const number = computeSessionNumber(getPatient(), s.id);
+  const numberLabel = number ? `Sitzung ${number}` : "Sitzung";
+  const dateLabel = s.date ? formatDateShort(s.date) : "";
+  const focusSuffix = s.focus ? ` · ${escapeHtml(clip(s.focus, 48))}` : "";
   // Archivierte Sitzung aufklappbar + rückwirkend editierbar (Felder schreiben direkt
   // via data-session-summary/-field). Re-Prüfen hält die Vorversion als Revision.
-  return `<details class="session-item">
+  return `<details class="session-item" data-session-id="${sid}">
     <summary class="session-summary">
-      <strong>${escapeHtml(s.focus ? clip(s.focus, 56) : "Sitzung")}</strong>
+      <strong>${escapeHtml(numberLabel)}</strong>
+      ${dateLabel ? `<span class="session-date">${escapeHtml(dateLabel)}</span>` : ""}
+      <span class="session-focus">${focusSuffix}</span>
       <span class="mini-status">${escapeHtml(s.status || "")}</span>
       ${s.revisions?.length ? `<span class="mini-status">${s.revisions.length} frühere Version${s.revisions.length === 1 ? "" : "en"}</span>` : ""}
     </summary>
@@ -1115,6 +1258,111 @@ function renderSessionDetails(s) {
     </div>
   </details>`;
 }
+
+function patientSessionsHtml(patient) {
+  const sessions = Array.isArray(patient.sessions) ? patient.sessions : [];
+  const sorted = [...sessions].sort((a, b) => {
+    const aHas = !!a.date;
+    const bHas = !!b.date;
+    if (aHas !== bHas) return aHas ? -1 : 1;
+    if (!aHas) return sessions.indexOf(a) - sessions.indexOf(b);
+    const aKey = `${a.date}T${a.time || "00:00"}`;
+    const bKey = `${b.date}T${b.time || "00:00"}`;
+    return aKey.localeCompare(bKey);
+  });
+  const items = sorted.map((s) => {
+    const number = computeSessionNumber(patient, s.id);
+    const isViewed = viewSessionId === s.id;
+    return `<div class="session-nav-item${isViewed ? " is-current" : ""}" role="button" tabindex="0" data-session-id="${escapeHtml(s.id)}">
+      <strong>Sitzung ${number ?? "?"}</strong>
+      <input type="date" class="session-nav-date-input" data-session-id="${escapeHtml(s.id)}" value="${escapeHtml(s.date || "")}" aria-label="Datum für Sitzung ${number ?? ""}">
+    </div>`;
+  }).join("");
+  const draftNumber = sessions.length + 1;
+  const currentClass = viewSessionId ? "" : " is-current";
+  return `<div class="patient-sessions">
+    ${items}
+    <div class="session-nav-item${currentClass}" role="button" tabindex="0" data-session-id="__current__">
+      <strong>Aktuell · Sitzung ${draftNumber}</strong>
+    </div>
+  </div>`;
+}
+
+function navigateToSession(sessionId) {
+  if (sessionId === "__current__") {
+    viewSessionId = null;
+    renderAll();
+    document.querySelector(".workspace")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  viewSessionId = sessionId;
+  renderAll();
+  document.querySelector(".workspace")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderSessionViewPanel(patient) {
+  if (!sessionViewPanel) return;
+  if (!patient || !viewSessionId) {
+    sessionViewPanel.innerHTML = "";
+    return;
+  }
+  const session = (patient.sessions || []).find((s) => s.id === viewSessionId);
+  if (!session) {
+    sessionViewPanel.innerHTML = "";
+    return;
+  }
+  const number = computeSessionNumber(patient, session.id);
+  const dateLabel = session.date ? formatDateShort(session.date) : "ohne Datum";
+  const timeLabel = session.time && session.date ? ` · ${escapeHtml(session.time)}` : "";
+  const focusSuffix = session.focus ? ` · ${escapeHtml(clip(session.focus, 60))}` : "";
+  const fields = [
+    { label: "Fokus", value: session.focus },
+    { label: "Kernpunkte", value: session.summary?.core },
+    { label: "Absprachen", value: session.summary?.agreement },
+    { label: "Offen", value: session.summary?.open },
+    { label: "Vorsicht / Beobachtung", value: session.summary?.watch }
+  ];
+  const fieldsHtml = fields.map((f) => {
+    const empty = !f.value;
+    return `<div class="view-field${empty ? " empty" : ""}">
+      <span>${f.label}</span>
+      <p>${empty ? "—" : escapeHtml(f.value)}</p>
+    </div>`;
+  }).join("");
+  const befundMarked = getBefundMarkedHtml(session.befund);
+  const befundHtml = befundMarked
+    ? `<details class="view-befund">
+        <summary>Psychopathologischer Befund anzeigen</summary>
+        <p>${befundMarked}</p>
+      </details>`
+    : "";
+  const transcript = session.transcript || "";
+  const transcriptHtml = transcript
+    ? `<details class="view-transcript">
+        <summary>Original-Transkript anzeigen</summary>
+        <p>${escapeHtml(transcript)}</p>
+      </details>`
+    : `<p class="view-transcript-empty">Kein Transkript gespeichert.</p>`;
+  sessionViewPanel.innerHTML = `
+    <div class="view-head">
+      <div>
+        <h2>Sitzung ${number ?? "?"}</h2>
+        <span class="view-date">${escapeHtml(dateLabel)}${timeLabel}${focusSuffix}</span>
+      </div>
+      <button class="back-to-current" type="button" id="backToCurrentBtn">← Aktuelle Sitzung</button>
+    </div>
+    ${fieldsHtml}
+    ${befundHtml}
+    ${transcriptHtml}
+  `;
+}
+
+sessionViewPanel?.addEventListener("click", (event) => {
+  if (event.target.closest("#backToCurrentBtn")) {
+    viewSessionId = null;
+    renderAll();
+  }
+});
 
 function renderHistoryBook(patient) {
   if (!historyBook) return;
@@ -1644,6 +1892,31 @@ function getBefundText(selection) {
   }
 }
 
+// HTML mit Abweichungen markiert (befund-abweichung). Abweichende oder nicht erhebbare
+// Sektionen werden hervorgehoben, normale fließen unauffällig.
+function getBefundMarkedHtml(selection) {
+  if (!selection || typeof selection !== "object") return "";
+  if (typeof befundSectionText !== "function" || typeof BEFUND_CATALOG === "undefined") return "";
+  try {
+    const parts = BEFUND_CATALOG.map((section) => {
+      const sel = selection[section.id] || { normal: true, itemIds: [] };
+      const raw = befundSectionText(section, sel);
+      const trimmed = raw.trim();
+      const text = trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
+      // Jeder Abschnitt ist Satzanfang -> ersten Buchstaben großschreiben.
+      const cap = text.replace(/^\s*(\p{Ll})/u, (_, c) => c.toUpperCase());
+      const isAbnormal = !sel.normal || !!sel.nichtErhebbar;
+      return { text: cap, isAbnormal };
+    });
+    return parts.map((p) => {
+      const safe = escapeHtml(p.text);
+      return p.isAbnormal ? `<mark class="befund-abweichung">${safe}</mark>` : safe;
+    }).join(" ");
+  } catch {
+    return "";
+  }
+}
+
 function exportBefundBlock(selection) {
   const text = getBefundText(selection);
   return text ? `<div class="export-grid one">${exportField("Psychopathologischer Befund", text)}</div>` : "";
@@ -1679,17 +1952,19 @@ function exportMemorySection(patient) {
   return `<div class="export-grid two">${sections.join("")}</div>`;
 }
 
-function exportSessionBlock(session, index, { revision = false, mode = "akte" } = {}) {
+function exportSessionBlock(session, number, { revision = false, mode = "akte" } = {}) {
   const summary = session.summary || {};
   const prep = session.prep || {};
   const revisions = Array.isArray(session.revisions) ? session.revisions : [];
   const includeWorking = mode === "arbeitsnotiz";
+  const dateLine = [session.date ? formatDateShort(session.date) : "", session.time || ""]
+    .filter(Boolean).join(", ");
   return `
     <article class="${revision ? "export-revision" : "export-session"}">
       <header class="export-session-head">
         <div>
-          <span>${revision ? "Frühere Version" : `Sitzung ${index + 1}`}</span>
-          <h3>${escapeHtml(formatDateShort(session.date))}${session.time ? `, ${escapeHtml(session.time)}` : ""}</h3>
+          <h3>${revision ? "Frühere Version" : `Sitzung ${number}`}</h3>
+          ${dateLine ? `<span>${escapeHtml(dateLine)}</span>` : ""}
         </div>
         <strong>${escapeHtml(session.status || "Status offen")}</strong>
       </header>
@@ -1704,7 +1979,7 @@ function exportSessionBlock(session, index, { revision = false, mode = "akte" } 
       ${!revision && revisions.length ? `
         <section class="export-revisions">
           <h3>Frühere Versionen</h3>
-          ${revisions.map((rev, revIndex) => exportSessionBlock(rev, revIndex, { revision: true, mode })).join("")}
+          ${revisions.map((rev) => exportSessionBlock(rev, null, { revision: true, mode })).join("")}
         </section>` : ""}
     </article>`;
 }
@@ -1903,7 +2178,7 @@ function buildPatientExportHtml(patient, { mode = "akte" } = {}) {
 
       <h2>Archivierte Sitzungen</h2>
       ${sessions.length
-        ? sessions.map((session, index) => exportSessionBlock(session, index, { mode })).join("")
+        ? sessions.map((session) => exportSessionBlock(session, computeSessionNumber(patient, session.id), { mode })).join("")
         : `<p class="export-empty">Keine archivierten Sitzungen vorhanden.</p>`}
     </main>
   </body>
@@ -2002,19 +2277,6 @@ function archiveCurrentSession(patient) {
 function approveCurrent() {
   const patient = getPatient();
   if (!patient) return;
-  if (patient.caseStatus === "aktiv" && !hasFutureFollowUp(patient)) {
-    const proceed = window.confirm(
-      "Kein Folgetermin in der Zukunft eingetragen. Trotzdem freigeben und archivieren?\n\n" +
-      "OK = trotzdem fortfahren\n" +
-      "Abbrechen = Termin eintragen"
-    );
-    if (!proceed) {
-      setActiveStep("record");
-      const dateInput = document.querySelector('[data-field="nextDate"]');
-      if (dateInput) dateInput.focus();
-      return;
-    }
-  }
   archiveCurrentSession(patient);
   savePatients();
   activeStep = "prep";
@@ -2114,7 +2376,7 @@ async function requestBefundSuggest(patient) {
   const aiBtn = befundPanel && befundPanel.querySelector(".befund-ai-btn");
   if (aiBtn) {
     aiBtn.disabled = true;
-    aiBtn.textContent = "KI lauft…";
+    aiBtn.textContent = "KI läuft…";
   }
 
   try {

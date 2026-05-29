@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Praxis Memo</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=1.0.9-searchforce" />
   </head>
   <body>
     <div class="page-texture" aria-hidden="true"></div>
@@ -25,6 +25,14 @@
             </div>
           </div>
 
+          <button class="soft-action add-patient-action" type="button" id="addPatientButton">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5v14"></path>
+              <path d="M5 12h14"></path>
+            </svg>
+            Patient anlegen
+          </button>
+
           <label class="search-shell">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="11" cy="11" r="7"></circle>
@@ -35,34 +43,6 @@
         </div>
 
         <div class="patient-list" id="patientList"></div>
-
-        <div class="side-actions">
-          <div class="storage-status" id="storageStatus">Verbindung wird geprüft…</div>
-          <button class="quiet-action" type="button" id="backupButton">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3v12"></path>
-              <path d="m7 10 5 5 5-5"></path>
-              <path d="M5 21h14"></path>
-            </svg>
-            Backup erstellen
-          </button>
-          <button class="quiet-action" type="button" id="restoreButton">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 21v-12"></path>
-              <path d="m7 14 5-5 5 5"></path>
-              <path d="M5 3h14"></path>
-            </svg>
-            Backup wiederherstellen
-          </button>
-          <input type="file" id="restoreInput" accept="application/json" hidden />
-          <button class="soft-action" type="button" id="addPatientButton">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 5v14"></path>
-              <path d="M5 12h14"></path>
-            </svg>
-            Patient anlegen
-          </button>
-        </div>
       </aside>
 
       <main class="workspace">
@@ -87,57 +67,45 @@
           <div class="top-actions">
             <label class="top-select-label">
               <span>Fallstatus</span>
-              <select id="caseStatusSelect" class="status-select" aria-label="Fallstatus">
-                <option value="aktiv">Aktiv</option>
-                <option value="pausiert">Pausiert</option>
-                <option value="abgeschlossen">Abgeschlossen</option>
-                <option value="archiviert">Archiviert</option>
-              </select>
-            </label>
-            <button class="quiet-action" type="button" id="archivePatientButton" title="Archivieren">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M21 8V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"></path>
-                <path d="M23 3H1v5h22V3Z"></path>
-                <path d="M10 12h4"></path>
-              </svg>
-              <span data-label>Archivieren</span>
-            </button>
-            <button class="quiet-action export-action" type="button" id="exportPatientButton" title="Patientenakte als Druckansicht öffnen">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"></path>
-                <path d="M14 3v6h6"></path>
-                <path d="M8 13h8"></path>
-                <path d="M8 17h5"></path>
-              </svg>
-              Akte drucken
-            </button>
-            <button class="quiet-action export-action" type="button" id="workExportPatientButton" title="Arbeitsnotiz mit Entwürfen und Rohtext öffnen">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 4h16v16H4z"></path>
-                <path d="M8 8h8"></path>
-                <path d="M8 12h8"></path>
-                <path d="M8 16h5"></path>
-              </svg>
-              Arbeitsnotiz
-            </button>
-            <button class="soft-action new-session-action" type="button" id="newSessionButton">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5v14"></path>
-                <path d="M5 12h14"></path>
-              </svg>
-              Neue Sitzung
-            </button>
-            <div class="status-help">
-              <select id="statusSelect" class="status-select" aria-label="Bearbeitungsstatus" aria-describedby="statusTooltip">
-                <option value="Offen">Offen</option>
-                <option value="Entwurf">Entwurf</option>
-                <option value="Geprüft">Geprüft</option>
-              </select>
-              <div class="status-tooltip" id="statusTooltip" role="tooltip">
-                <p><strong>Offen</strong> muss noch ergänzt werden.</p>
-                <p><strong>Entwurf</strong> ist gespeichert, aber nicht fachlich geprüft.</p>
-                <p><strong>Geprüft</strong> wurde bewusst kontrolliert.</p>
+              <div class="status-help">
+                <select id="caseStatusSelect" class="status-select status-select--primary" aria-label="Fallstatus" aria-describedby="caseStatusTooltip">
+                  <option value="aktiv">Aktiv</option>
+                  <option value="pausiert">Pausiert</option>
+                  <option value="abgeschlossen">Abgeschlossen</option>
+                  <option value="archiviert">Archiviert</option>
+                </select>
+                <div class="status-tooltip" id="caseStatusTooltip" role="tooltip">
+                  <p><strong>Aktiv</strong> — Patient ist in laufender Behandlung.</p>
+                  <p><strong>Pausiert</strong> — Behandlung vorübergehend unterbrochen.</p>
+                  <p><strong>Abgeschlossen</strong> — Behandlung beendet, Akte bleibt einsehbar.</p>
+                  <p><strong>Archiviert</strong> — aus dem Alltag genommen, nur noch im Archiv.</p>
+                </div>
               </div>
+            </label>
+            <label class="top-select-label">
+              <span>Bearbeitungsstatus</span>
+              <div class="status-help">
+                <select id="statusSelect" class="status-select" aria-label="Bearbeitungsstatus" aria-describedby="statusTooltip">
+                  <option value="Offen">Offen</option>
+                  <option value="Entwurf">Entwurf</option>
+                  <option value="Geprüft">Geprüft</option>
+                </select>
+                <div class="status-tooltip" id="statusTooltip" role="tooltip">
+                  <p><strong>Offen</strong> muss noch ergänzt werden.</p>
+                  <p><strong>Entwurf</strong> ist gespeichert, aber nicht fachlich geprüft.</p>
+                  <p><strong>Geprüft</strong> wurde bewusst kontrolliert.</p>
+                </div>
+              </div>
+            </label>
+            <div class="top-action-spacer">
+              <span class="top-action-spacer-label" aria-hidden="true">·</span>
+              <button class="soft-action new-session-action" type="button" id="newSessionButton">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14"></path>
+                  <path d="M5 12h14"></path>
+                </svg>
+                Neue Sitzung
+              </button>
             </div>
           </div>
         </header>
@@ -161,9 +129,6 @@
           </button>
         </nav>
 
-        <section class="quick-prep" id="quickPrep" aria-label="Schnellblick für die nächste Sitzung"></section>
-        <section class="risk-alerts" id="riskAlerts" aria-label="Aktive Hinweise"></section>
-
         <section class="empty-workspace" aria-label="Start ohne Patient">
           <div>
             <p class="eyebrow">Start</p>
@@ -180,40 +145,28 @@
         </section>
 
         <section class="step-panel active" id="recordPanel" aria-label="Einsprechen">
-          <div class="record-panel">
-            <div>
-              <p class="eyebrow">Nach der Sitzung</p>
-              <h3>Nachnotiz diktieren</h3>
-              <p class="muted">Diktat läuft direkt im Browser — kein Text verlässt den PC.</p>
-            </div>
-
-            <div class="recorder">
-              <button class="record-button" id="recordButton" type="button" aria-label="Diktat starten">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                  <path d="M12 19v3"></path>
-                  <path d="M8 22h8"></path>
-                </svg>
-              </button>
-              <div>
-                <span id="recordStatus">Bereit</span>
-                <strong id="recordTimer">00:00</strong>
-              </div>
-            </div>
-
-            <div class="wave" id="waveform" aria-hidden="true">
-              <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-              <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-            </div>
-          </div>
-
           <div class="editor-grid">
             <article class="panel transcript-panel">
               <div class="panel-head">
-                <div>
-                  <h3>Nachnotiz</h3>
+                <h3>Nachnotiz</h3>
+                <div class="recorder">
+                  <button class="record-button" id="recordButton" type="button" aria-label="Diktat starten">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                      <path d="M12 19v3"></path>
+                      <path d="M8 22h8"></path>
+                    </svg>
+                  </button>
+                  <div>
+                    <span id="recordStatus">Bereit</span>
+                    <strong id="recordTimer">00:00</strong>
+                  </div>
                 </div>
+              </div>
+              <div class="wave" id="waveform" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
               </div>
               <textarea id="transcriptInput" class="large-input" data-field="transcript" rows="10" placeholder="Diktieren oder Text eingeben…"></textarea>
               <div class="action-row">
@@ -366,13 +319,64 @@
         </section>
 
         <section class="step-panel" id="befundPanel" aria-label="Befund"></section>
+
+        <section class="risk-alerts" id="riskAlerts" aria-label="Aktive Hinweise"></section>
+
+        <section class="session-view-panel" id="sessionViewPanel" aria-label="Sitzungsansicht"></section>
+
+        <footer class="patient-footer-actions" aria-label="Weitere Aktionen">
+          <button class="quiet-action export-action" type="button" id="exportPatientButton" title="Patientenakte als Druckansicht öffnen">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"></path>
+              <path d="M14 3v6h6"></path>
+              <path d="M8 13h8"></path>
+              <path d="M8 17h5"></path>
+            </svg>
+            Akte drucken
+          </button>
+          <button class="quiet-action export-action" type="button" id="workExportPatientButton" title="Arbeitsnotiz mit Entwürfen und Rohtext öffnen">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 4h16v16H4z"></path>
+              <path d="M8 8h8"></path>
+              <path d="M8 12h8"></path>
+              <path d="M8 16h5"></path>
+            </svg>
+            Arbeitsnotiz
+          </button>
+          <button class="quiet-action" type="button" id="archivePatientButton" title="Archivieren">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 8V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"></path>
+              <path d="M23 3H1v5h22V3Z"></path>
+              <path d="M10 12h4"></path>
+            </svg>
+            <span data-label>Archivieren</span>
+          </button>
+        </footer>
       </main>
 
     </div>
 
+    <div class="backup-bar" aria-label="Backup">
+      <button class="backup-mini" type="button" id="backupButton" title="Backup erstellen" aria-label="Backup erstellen">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3v12"></path>
+          <path d="m7 10 5 5 5-5"></path>
+          <path d="M5 21h14"></path>
+        </svg>
+      </button>
+      <button class="backup-mini" type="button" id="restoreButton" title="Backup wiederherstellen" aria-label="Backup wiederherstellen">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 21v-12"></path>
+          <path d="m7 14 5-5 5 5"></path>
+          <path d="M5 3h14"></path>
+        </svg>
+      </button>
+      <input type="file" id="restoreInput" accept="application/json" hidden />
+    </div>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="befund.js"></script>
-    <script src="app.js"></script>
+    <script src="befund.js?v=1.0.9-case"></script>
+    <script src="app.js?v=1.0.9-search"></script>
   </body>
 </html>

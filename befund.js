@@ -394,13 +394,21 @@ function befundSectionText(section, sel) {
 }
 
 function befundFliesstext(catalog, selection) {
-  return catalog
+  const joined = catalog
     .map((section) => {
       const raw = befundSectionText(section, (selection || {})[section.id] || { normal: true, itemIds: [] });
       const trimmed = raw.trim();
       return trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
     })
     .join(" ");
+  return capitalizeSentences(joined);
+}
+
+function capitalizeSentences(text) {
+  if (!text) return text;
+  return text
+    .replace(/^\s*(\p{Ll})/u, (_, c) => c.toUpperCase())
+    .replace(/([.!?]\s+)(\p{Ll})/gu, (_, sep, c) => sep + c.toUpperCase());
 }
 
 if (typeof module !== "undefined" && module.exports) {

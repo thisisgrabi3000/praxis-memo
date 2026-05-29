@@ -131,6 +131,17 @@ def transcribe_audio(audio_bytes: bytes, content_type: str) -> str:
         segments, _ = model.transcribe(
             str(tmp_path), language="de", beam_size=5,
             initial_prompt=WHISPER_INITIAL_PROMPT,
+            # Qualitaets-Tuning fuer Diktat (kein Modellwechsel):
+            # VAD schneidet Stille raus -> verhindert halluzinierten Text/Wiederholungen
+            # in Sprechpausen. condition_on_previous_text=False stoppt Fehler-Kaskaden,
+            # bei denen ein falsches Segment die folgenden vergiftet. Schwellenwerte
+            # filtern unsichere/halluzinierte Segmente.
+            vad_filter=True,
+            vad_parameters={"min_silence_duration_ms": 500},
+            condition_on_previous_text=False,
+            no_speech_threshold=0.6,
+            compression_ratio_threshold=2.4,
+            temperature=[0.0, 0.2, 0.4],
         )
         return " ".join(seg.text.strip() for seg in segments).strip()
     finally:

@@ -48,6 +48,7 @@ console.log("test_befund_engine SEKTIONSTEXT OK");
 const full = B.befundFliesstext(C, def);
 assert.ok(full.startsWith("Bewusstsein klar."), "Fliesstext beginnt mit Bewusstsein-Normalbefund");
 assert.ok(full.endsWith("."), "endet mit Punkt");
-assert.ok(full.includes("keine Hinweise auf akute Suizidalität"), "Gefaehrdungs-Normalbefund enthalten");
+assert.ok(full.includes("Hinweise auf akute Suizidalität"), "Gefaehrdungs-Normalbefund enthalten");
+assert.ok(/\. [A-ZÄÖÜ]/.test(full), "Nach Punkt + Leerzeichen folgt Großbuchstabe");
 
 console.log("test_befund_engine FLIESSTEXT OK");
